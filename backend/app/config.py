@@ -1,1 +1,26 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+#OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
+#SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+#SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+
+MANAGER_MODEL = os.getenv("MANAGER_MODEL", "openai/gpt-4o-mini")
+#PROFILER_MODEL = os.getenv("PROFILER_MODEL", "openai/gpt-4o-mini")   
+#CLASSIFIER_MODEL = os.getenv("CLASSIFIER_MODEL", "perplexity/sonar-pro")
+#CLUSTER_LABEL_MODEL = os.getenv("CLUSTER_LABEL_MODEL", "openai/gpt-4o")
+#CONTENT_MODEL = os.getenv("CONTENT_MODEL", "")
+
+
+#TEXT_EMBEDDING_MODEL = "text-embedding-3-small"
+#CLIP_MODEL = "openai/clip-vit-large-patch14"
+
+
+APP_NAME = "LumenIQ"
 
