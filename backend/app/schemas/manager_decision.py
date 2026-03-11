@@ -7,4 +7,5 @@ class ManagerDecision(BaseModel):
     route: RouteType
     target_agent: str
     reason: str
+    pipeline_end_at: str
     manager_response: str

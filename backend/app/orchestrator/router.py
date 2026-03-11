@@ -1,1 +1,152 @@
+from app.schemas.business_context import BusinessContext
+from app.orchestrator.route_types import IntentType, RouteType
 
+class Router:
+
+    # Determining value for max age of posts and trends for them to be valid (used when planning to reuse data from previous runs saved in DB)
+    POSTS_MAX_AGE_DAYS = 14 # If posts are older than 14 days competitor analysis agent will be re run to fetch latest data
+    CONTENT_TRENDS_MAX_AGE_DAYS = 14 # If trend summeries.json are older than 14 days, trend analysis agent will re run to fetch latest data
+    PHOTO_TRENDS_MAX_AGE_DAYS = 30 # If trend clusters are over 30 days old, trend analysis agent will re run to generate clusters based on latest trends.
+
+
+    # This function matches user intent with the correct route. Returns (RouteType, target_agent_name, reason, pipeline_end_at).
+    def determine_route(self, intent: IntentType, context: BusinessContext):
+
+        # Find competitors
+        if intent == IntentType.FIND_COMPETITORS:
+            if context.has_hashtags:
+                return(
+                    RouteType.COMPETITOR_ANALYSIS_ONLY,
+                    "competitor_analysis_agent",
+                    "Hashtags exist. Skipping profiler, running competitor analysis only.",
+                    "competitor_only"
+                )
+            return(
+                RouteType.PROFILER_AND_COMPETITOR_ONLY,
+                "business_profiler_agent",
+                "No hashtags found. Running profiler then competitor analysis.",
+                "competitor_only"
+            )
+        
+        # Schedule Posts
+        if intent == IntentType.SCHEDULE_POST:
+            if not context.has_content_plan:
+                return(
+                    RouteType.UNKNOWN,
+                    "manager_agent",
+                    "No content plan exists yet. Manager will ask user what post they want to schedule or offer to run the pipeline first.",
+                    "manager"
+                )
+            return (
+                RouteType.SCHEDULE_POST,
+                "scheduler_agent",
+                "Content plan exists. Routing to scheduler.",
+                "scheduler"
+            )
+        
+        # Reschedule Posts
+        if intent == IntentType.RESCHEDULE_POST:
+            return (
+                RouteType.RESCHEDULE_POST,
+                "scheduler_agent",
+                "User wants to reschedule an existing post.",
+                "scheduler"
+            )
+        
+        # Generate content ideas 
+        if intent == IntentType.GENERATE_CONTENT_IDEAS:
+            if context.are_trends_valid(self.CONTENT_TRENDS_MAX_AGE_DAYS):
+                return (
+                    RouteType.SKIP_TO_CONTENT_GENERATOR,
+                    "content_generator_agent",
+                    "Valid trend summary exists. Skipping directly to content generator agent",
+                    "content_generator"
+                )
+            if context.are_posts_valid(self.POSTS_MAX_AGE_DAYS):
+                return(
+                    RouteType.SKIP_TO_TREND_ANALYSIS,
+                    "trend_analysis_agent",
+                    "Posts are valid but trend summaries are not valid. Skipping to trend analysis agent",
+                    "content_generator"
+                )
+            if context.has_hashtags:
+                return (
+                    RouteType.SKIP_TO_COMPETITOR_ANALYSIS,
+                    "competitor_analysis_agent",
+                    "Hashtags exists but posts are missing or invalid. Skipping to competitor analysis agent",
+                    "content_generator"
+                )
+            return (
+                RouteType.FULL_PIPELINE,
+                "business_profiler_agent",
+                "No data found. Running full pipeline",
+                "content_generator"
+            )
+        
+        # Analyze user uploaded photo
+        if intent == IntentType.ANALYZE_PHOTO:
+            if context.are_trends_valid(self.PHOTO_TRENDS_MAX_AGE_DAYS):
+                return (
+                    RouteType.ANALYZE_PHOTO,
+                    "content_generator_agent",
+                    "Valid trend summary exists. Analyzing photo against clusters",
+                    "analyze_photo"
+                )
+            if context.are_posts_valid(self.POSTS_MAX_AGE_DAYS):
+                return(
+                    RouteType.SKIP_TO_TREND_ANALYSIS,
+                    "trend_analysis_agent",
+                    "Posts are valid but trend summaries are not valid. Skipping to trend analysis agent",
+                    "analyze_photo"
+                )
+            if context.has_hashtags:
+                return (
+                    RouteType.SKIP_TO_COMPETITOR_ANALYSIS,
+                    "competitor_analysis_agent",
+                    "Hashtags exists but posts are missing or invalid. Skipping to competitor analysis agent",
+                    "analyze_photo"
+                )
+            return (
+                RouteType.FULL_PIPELINE,
+                "business_profiler_agent",
+                "No data found. Running full pipeline",
+                "analyze_photo"
+            )
+        
+        # Generate post image
+        if intent == IntentType.GENERATE_POST_IMAGE:
+            if context.are_trends_valid(self.CONTENT_TRENDS_MAX_AGE_DAYS):
+                return (
+                    RouteType.GENERATE_POST_IMAGE,
+                    "content_generator_agent",
+                    "Valid trend summary exists. Skipping directly to content generator agent",
+                    "generate_image"
+                )
+            if context.are_posts_valid(self.POSTS_MAX_AGE_DAYS):
+                return(
+                    RouteType.SKIP_TO_TREND_ANALYSIS,
+                    "trend_analysis_agent",
+                    "Posts are valid but trend summaries are not valid. Skipping to trend analysis agent",
+                    "generate_image"
+                )
+            if context.has_hashtags:
+                return (
+                    RouteType.SKIP_TO_COMPETITOR_ANALYSIS,
+                    "competitor_analysis_agent",
+                    "Hashtags exists but posts are missing or invalid. Skipping to competitor analysis agent",
+                    "generate_image"
+                )
+            return (
+                RouteType.FULL_PIPELINE,
+                "business_profiler_agent",
+                "No data found. Running full pipeline",
+                "generate_image"
+            )
+
+        # Fallback 
+        return (
+            RouteType.UNKNOWN,
+            "manager_agent",
+            "Could not determine user intent. Manager will ask for clarification",
+            "manager"
+        )

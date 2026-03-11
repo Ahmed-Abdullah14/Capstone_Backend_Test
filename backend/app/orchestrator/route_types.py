@@ -12,18 +12,20 @@ class IntentType(str, Enum):
     UNKNOWN                = "unknown"  
 
 class RouteType(str, Enum):
-    # First run when nothing exsists or when data is older than threshold value
-    FULL_PIPELINE = "full_pipeline"
-    # If hashtags exsists then skip profiler and run competitor analysis
+    # First run when nothing exists or when data is older than threshold value
+    FULL_PIPELINE                 = "full_pipeline"
+    # If hashtags exists then skip profiler and run competitor analysis, then trend analysis and then content generator
     SKIP_TO_COMPETITOR_ANALYSIS   = "skip_to_competitor_analysis"
-    # If competitors & posts exsists then skip comeptitor analysis and run trend analysis
+    # If competitors & posts exsit then skip competitor analysis and run trend analysis and then content generator 
     SKIP_TO_TREND_ANALYSIS        = "skip_to_trend_analysis"
-    # If trend summeries exsist then skip trend analysis and run content generator
+    # If trend summeries exists then skip trend analysis and run content generator
     SKIP_TO_CONTENT_GENERATOR     = "skip_to_content_generator"
+
+    # Only dual agent route to response to users who just want to find competitors
+    PROFILER_AND_COMPETITOR_ONLY  = "profiler_and_competitor_only"
 
     # Single agent routes
     COMPETITOR_ANALYSIS_ONLY      = "competitor_analysis_only"
-    TREND_ANALYSIS_ONLY           = "trend_analysis_only"
     ANALYZE_PHOTO                 = "analyze_photo"          
     SCHEDULE_POST                 = "schedule_post"         
     RESCHEDULE_POST               = "reschedule_post"         
