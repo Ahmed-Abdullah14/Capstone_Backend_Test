@@ -1,18 +1,18 @@
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 # We are using pydantic models rather than passing dictionaries for better data validation 
 
 class BusinessContext(BaseModel):
-    user_id: str        # who is logged in (the LumenIQ account)
-    business_id: str    # which business we're working on (one user can have many)
+    user_id: str        # Which user is logged in the LumenIQ account
+    business_id: str    # Which business of that user we're working on (one user can have many businesses)
 
     # Collected during onboarding (required) 
     # TODO_: once Supabase is connected, change these to required fields (remove Optional + None default)
     # These are only Optional now because chainlit_app.py creates an empty BusinessContext
     # before loading from DB. Once repo.get_business_context() is wired up properly,
-    # these will always be populated from the frontend onboarding form.
+    # these will always be populated from the frontend onboarding form/DB.
     business_name: Optional[str] = None
     business_type: Optional[str] = None
     location: Optional[str] = None
@@ -23,14 +23,23 @@ class BusinessContext(BaseModel):
     website: Optional[str] = None
 
     # Pipeline state flags (router uses these to skip completed steps) 
-    has_hashtags: bool = False           # business profiler has not run yet
-    has_competitors: bool = False        # competitor analysis has not found accounts yet
-    competitor_count: int = 0
-    has_top_posts: bool = False          # competitor posts have not been scraped + ranked
-    has_trend_summary: bool = False      # trend analysis is not complete
-    has_content_plan: bool = False       # content generator has not run yet
+    has_hashtags: bool = False           # True once business profiler has run 
+    has_top_posts: bool = False          # True once competitor list & posts have been scraped + ranked
+    has_trend_summary: bool = False      # True once trend analysis is  complete
+    has_content_plan: bool = False       # True once content generator has run 
 
     # Freshness timestamps (for re-run efficiency) 
     hashtags_last_updated: Optional[datetime] = None
     posts_last_scraped: Optional[datetime] = None
     trends_last_updated: Optional[datetime] = None
+
+    # Helper functions to calculate post and trend summaries age and check their validaity 
+    def are_posts_valid(self, max_age_days):
+        # TODO: Implement this function to calculate post age based on post_last_scraped and check if that age is within threshold of max_age_days
+        # Function should return eitehr True or False
+        return False
+    
+    def are_trends_valid(self, max_age_days):
+        # TODO: Implement this function to calculate trend summary age based on trends_last_updated and check if that age is within threshold of max_age_days
+        # Function should return eitehr True or False
+        return False

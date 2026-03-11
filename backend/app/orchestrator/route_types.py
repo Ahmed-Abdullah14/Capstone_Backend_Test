@@ -29,8 +29,5 @@ class RouteType(str, Enum):
     RESCHEDULE_POST               = "reschedule_post"         
     GENERATE_POST_IMAGE           = "generate_post_image"
 
-    # Blocked routes
-    BUSINESS_PROFILE_REQUIRED     = "business_profile_required"  # no profile exists yet
-    TREND_DATA_REQUIRED           = "trend_data_required"        # no trend data for photo analysis
+    # Invalid route
     UNKNOWN                       = "unknown"
-
