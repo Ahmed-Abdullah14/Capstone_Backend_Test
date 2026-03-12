@@ -7,8 +7,8 @@ __pycache__/
 *.so
 
 # Chainlit
-.chainlit/translations/
-.chainlit/public/
+backend/.chainlit/translations/
+backend/.chainlit/public/
 
 # Distribution / packaging
 .Python
