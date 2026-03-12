@@ -1,4 +1,4 @@
-from app.db.supabase_client import supabase
+#from app.db.supabase_client import supabase
 from app.schemas.business_context import BusinessContext
 
 # This file will have all DB functions related to the business profiler agent 
