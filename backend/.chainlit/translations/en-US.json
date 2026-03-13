@@ -100,7 +100,7 @@
         "messages": {
             "status": {
                 "using": "Using",
-                "used": "Used"
+                "used": ""
             },
             "actions": {
                 "copy": {

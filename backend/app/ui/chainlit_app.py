@@ -6,6 +6,7 @@ from app.agents.manager_agent import ManagerAgent
 from app.schemas.business_context import BusinessContext
 from app.schemas.user_request import UserRequest
 from app.db.business_profiler_queries import BusinessProfilerQueries
+from app.orchestrator.route_types import RouteType
 
 
 kernel = kernel_init()
@@ -24,6 +25,8 @@ async def on_chat_start():
 
     cl.user_session.set("user_id", user_id)
     cl.user_session.set("business_id", business_id)
+    cl.user_session.set("pending_route", None)
+    cl.user_session.set("pending_pipeline_end_at", None)
     
     context = business_profiler_queries.get_business_context(user_id, business_id)
     cl.user_session.set("context", context)
@@ -34,3 +37,44 @@ async def on_chat_start():
         "Your business profile has been set up. Whenever you're ready, let me know would you like to work on today?"
     )).send()
     
+@cl.on_message
+async def on_message(message: cl.Message):
+    thread = cl.user_session.get("thread")
+    user_id = cl.user_session.get("user_id")
+    business_id = cl.user_session.get("business_id")
+    context = cl.user_session.get("context")
+    pending_route = cl.user_session.get("pending_route")
+    pending_pipeline_end_at = cl.user_session.get("pending_pipeline_end_at")
+
+    user_input = message.content
+
+    if context is None:
+        context = business_profiler_queries.get_business_context(user_id, business_id)
+        cl.user_session.set("context", context)
+
+    request = UserRequest(
+        user_id=user_id,
+        business_id=business_id,
+        user_prompt=user_input
+    )
+
+    try:
+        manager_decision = await manager.run(
+            user_request=request,
+            business_context=context,
+            thread=thread,
+            pending_route=pending_route
+        )
+
+        await cl.Message(content = manager_decision.manager_response).send()
+
+        if manager_decision.route not in [RouteType.UNKNOWN]:
+            cl.user_session.set("pending_route", manager_decision.route)
+            cl.user_session.set("pending_pipeline_end_at", manager_decision.pipeline_end_at)
+
+        context = business_profiler_queries.get_business_context(user_id, business_id)
+        cl.user_session.set("context", context)
+
+    except Exception as e:
+        await cl.Message(content = "Something went wrong").send()
+        raise e

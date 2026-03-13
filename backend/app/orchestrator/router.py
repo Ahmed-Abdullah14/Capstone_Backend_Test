@@ -14,6 +14,13 @@ class Router:
 
         # Find competitors
         if intent == IntentType.FIND_COMPETITORS:
+            if context.has_hashtags and context.are_posts_valid(self.POSTS_MAX_AGE_DAYS):
+                return(
+                    RouteType.FETCH_EXISTING_COMPETITORS,
+                    "manager_agent",
+                    "Competitor data is already fresh. Fetching existing results from DB.",
+                    "manager"
+                )
             if context.has_hashtags:
                 return(
                     RouteType.COMPETITOR_ANALYSIS_ONLY,

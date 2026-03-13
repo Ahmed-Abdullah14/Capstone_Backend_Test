@@ -16,7 +16,7 @@ class IntentClassifier:
             "content idea", "post idea", "what should i post", "give me ideas", "generate content", 
             "what should i shoot", "camera angle", "suggest content", "content recommendation", 
             "instagram ideas", "social media ideas", "ideas for a post", "ideas for instagram", 
-            "trending content", "photo angle"
+            "trending content", "photo angle", "generate a post", "create a post", "make a post"
         ],
         IntentType.RESCHEDULE_POST : [
             "reschedule", "move my post", "change the date", "move to", "change post date", 
@@ -59,9 +59,16 @@ class IntentClassifier:
                 model=MANAGER_MODEL,
                 messages=[
                     {"role": "system", "content": (
+                        "You are classifying user messages for LumenIQ, an Instagram growth platform for local businesses.\n"
+                        "LumenIQ helps businesses by finding competitors, analyzing trends, and generating content recommendations.\n\n"
+                        "When a user wants to grow their following, get more engagement, know what to post, or improve their "
+                        "Instagram presence — that is generate_content_ideas.\n\n"
                         "Classify the user message into one of these intents:\n"
                         "1. find_competitors: user wants to discover local competitors for their Instagram accounts\n"
-                        "2. generate_content_ideas: user wants a full content recommendation including photo angle, caption, hashtags and best posting times\n"
+                        "2. generate_content_ideas: user wants content recommendations or a posting plan, wants to grow "
+                            "their Instagram following, asks what to post, wants to go viral, wants to create a post, "
+                            "wants to generate a post, wants post ideas, wants to boost engagement, or wants a full "
+                            "analysis of their niche including photo angles, captions, hashtags and best posting times\n"
                         "3. analyze_photo: user uploaded a photo and wants a caption for it or want to know the best posting time\n"
                         "4. schedule_post: user wants to add a new post to their calendar\n"
                         "5. reschedule_post: user wants to move an existing scheduled post to a different date or time\n"
@@ -78,7 +85,4 @@ class IntentClassifier:
             return IntentType(result)
         except Exception:
             return IntentType.UNKNOWN 
-
-
-
 

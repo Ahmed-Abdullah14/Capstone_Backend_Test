@@ -14,11 +14,14 @@ from app.schemas.manager_decision import ManagerDecision
 from app.schemas.user_request import UserRequest
 from app.orchestrator.intent_classifier import IntentClassifier
 from app.orchestrator.router import Router
-from app.orchestrator.route_types import RouteType
+from app.orchestrator.route_types import RouteType, IntentType
 from app.db.business_profiler_queries import BusinessProfilerQueries
 from pathlib import Path
 
-MANAGER_INSTRUCTIONS = ""
+# Retreiving Manager instructions from app/prompts/manager.txt
+with open("app/prompts/manager.txt", "r") as f:
+    MANAGER_INSTRUCTIONS = f.read()
+
 
 class ManagerAgent(Agent):
     def __init__(self, kernel):
@@ -42,26 +45,54 @@ class ManagerAgent(Agent):
             instructions = MANAGER_INSTRUCTIONS
         )
 
-    async def run(self, user_request, business_context, thread):
+    async def run(self, user_request, business_context, thread, pending_route=None):
 
         # Try to figure out user intent, this function is wrapped in a chainlit step to show thought process on chainlit
-        async with cl.Step(name = "Understanding your request...") as step:
+        async with cl.Step(name = "Understanding your request...", type="step") as step:
             intent = await self.intent_classifier.classify(user_request.user_prompt)
             step.output = f"Intent detected: {intent}"
 
         # After identifying intent match intent with correct route, this function is wrapped in a chainlit step to show thought process on chainlit
-        async with cl.Step(name = "Planning Route...") as step:
+        async with cl.Step(name = "Planning Route...", type="step") as step:
             route, target_agent, reason, pipeline_end_at = self.router.determine_route(intent, business_context)
             step.output = f"Route determined: {route} \nReason: {reason}"
 
+        # Shows manager state at from the previous message
+        async with cl.Step(name="Session State", type="step") as step:
+            step.output = (
+                f"Pending route (Note: This is previous state route, it will update on next msg): {pending_route or 'None'}\n"
+                #f"Pending pipeline end at: {pending_pipeline_end_at or 'None'}"
+            )
+
+        # Add actual route execution next 
+
+        # Debugging
+        print(f"\n\n=== LLM MESSAGE ===\n{user_request.user_prompt}\n")
+
+        # Adding system message to memory thread with pipeline state
+        thread._chat_history.add_system_message(
+            f"Current pipeline state:\n"
+            f"- has_hashtags: {business_context.has_hashtags}\n"
+            f"- has_top_posts: {business_context.has_top_posts}\n"
+            f"- has_trend_summary: {business_context.has_trend_summary}\n"
+            f"- has_content_plan: {business_context.has_content_plan}\n"
+            f"- pending_route: {pending_route or 'None'}\n"
+        )
+        
+        # Adding user message to memory thread
+        thread._chat_history.add_user_message(user_request.user_prompt)
+
+        # Calling the Manager Agent LLM
         response = await self.agent.get_response(
             message = user_request.user_prompt,
             thread = thread,
             settings = OpenAIChatPromptExecutionSettings()  # Replace with OpenAIChatPromptExecutionSettings(function_choice_behavior=FunctionChoiceBehavior.Auto()) when manager tools implemented
         ) 
 
-        fallback_msg = "I am not sure how to help you with that, could you please provide some more information?"
+        # Debugging
+        print(f"\n\n=== LLM RESPONSE ===\n{response.content}\n")
 
+        fallback_msg = "I am not sure how to help you with that, could you please provide some more information?"
 
         return ManagerDecision(
             intent=intent,

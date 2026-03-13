@@ -31,5 +31,8 @@ class RouteType(str, Enum):
     RESCHEDULE_POST               = "reschedule_post"         
     GENERATE_POST_IMAGE           = "generate_post_image"
 
+    # Data already exist in DB
+    FETCH_EXISTING_COMPETITORS    = "fetch_existing_competitors"
+
     # Invalid route
     UNKNOWN                       = "unknown"
