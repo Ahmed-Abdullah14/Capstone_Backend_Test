@@ -23,11 +23,6 @@ CLIP_MODEL = "openai/clip-vit-base-patch32"
 
 APP_NAME = "LumenIQ"
 
-# --- Scheduler / Posting Agent ---
-FACEBOOK_ACCESS_TOKEN = os.getenv("FACEBOOK_ACCESS_TOKEN", "")
-IG_ACCOUNT_ID = os.getenv("IG_ACCOUNT_ID", "")
-FB_API_VERSION = os.getenv("FB_API_VERSION", "v19.0")
-
 # --- n8n Webhook URLs (Content Generator Agent) ---
 N8N_CONTENT_WEBHOOK_URL = os.getenv("N8N_CONTENT_WEBHOOK_URL", "")
 N8N_IMAGE_GEN_WEBHOOK_URL = os.getenv("N8N_IMAGE_GEN_WEBHOOK_URL", "")

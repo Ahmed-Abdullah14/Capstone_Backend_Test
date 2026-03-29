@@ -97,6 +97,6 @@ class ContentGeneratorResult(BaseModel):
 class SchedulerResult(BaseModel):
     business_id: str
     success: bool
-    scheduled_post_id: Optional[str] = None
+    calendar_post_id: Optional[str] = None
     message: str        # Returns message to manager then manager returns to user, for ex "Post Scheduled for 8 am on Tuesday Mar 10th"
 
