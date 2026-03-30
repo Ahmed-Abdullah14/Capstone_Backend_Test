@@ -194,17 +194,26 @@ class BusinessProfilerQueries:
         content_calendar_id: str,
         scheduled_at: datetime,
         caption: Optional[str] = None,
-        media: Optional[list[dict[str, Any]]] = None,
+        media: Optional[dict[str, Any]] = None,
         hashtags: Optional[list[str]] = None,
         day_of_the_week: Optional[int] = None,
         status: str = "scheduled",
     ) -> dict[str, Any]:
+        # DB check constraint rejects non-draft posts with empty required fields
+        if status != "draft":
+            if not caption:
+                raise ValueError("caption is required when status is not 'draft'")
+            if not media:
+                raise ValueError("media is required when status is not 'draft'")
+            if not hashtags:
+                raise ValueError("hashtags are required when status is not 'draft'")
+
         payload: dict[str, Any] = {
             "business_id": business_id,
             "content_calendar_id": content_calendar_id,
             "scheduled_at": check_utc(scheduled_at).isoformat(),
             "caption": caption,
-            "media": media or [],
+            "media": media or {},
             "hashtags": hashtags or [],
             "status": status,
         }

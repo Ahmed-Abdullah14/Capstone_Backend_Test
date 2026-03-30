@@ -16,7 +16,10 @@ class BusinessProfilerAgent(Agent):
         )
         self.business_profiler_queries = BusinessProfilerQueries()
 
-    async def run(self, context: BusinessContext) -> BusinessProfilerResult:
+    async def run(self, **kwargs) -> BusinessProfilerResult:
+        context: BusinessContext = kwargs.get("context")  # type: ignore[assignment]
+        if not context:
+            raise ValueError("BusinessProfilerAgent requires 'context' kwarg")
 
         # validation
         if not all([context.business_name, context.business_type, context.location, context.target_customers]):
