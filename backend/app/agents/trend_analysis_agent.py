@@ -2,11 +2,7 @@ import io
 import httpx
 import asyncio
 import numpy as np
-from openai import AsyncOpenAI
-from app.agents.base_agent import Agent
-from app.db.business_profiler_queries import BusinessProfilerQueries
-from app.config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, TEXT_EMBEDDING_MODEL, CLIP_MODEL, CLUSTER_LABEL_MODEL
-
+import math
 import torch
 from transformers import CLIPProcessor, CLIPModel
 from PIL import Image
@@ -14,9 +10,26 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.decomposition import PCA
 from collections import Counter
-from sklearn.preprocessing import normalize
+from datetime import datetime
+from openai import AsyncOpenAI
+from app.agents.base_agent import Agent
+from app.db.business_profiler_queries import BusinessProfilerQueries
+from app.config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, TEXT_EMBEDDING_MODEL, CLIP_MODEL, CLUSTER_LABEL_MODEL
+
 
 class TrendAnalysisAgent(Agent):
+
+    POSTING_TIME_WINDOWS = [
+        (6, 8, "6am-8am"),
+        (8, 10, "8am-10am"),
+        (10, 12, "10am-12pm"),
+        (12, 14, "12pm-2pm"),
+        (14, 16, "2pm-4pm"),
+        (16, 18, "4pm-6pm"),
+        (18, 20, "6pm-8pm"),
+        (20, 22, "8pm-10pm")
+    ]
+
     def __init__(self, kernel):
         super().__init__(kernel=kernel, name="trend_analysis_agent")
 
@@ -36,7 +49,6 @@ class TrendAnalysisAgent(Agent):
         # Fetching competitors posts
         business_id = context.business_id
         competitor_posts = self.business_profiler_queries.get_competitor_posts(business_id)
-        #competitor_posts = self.business_profiler_queries.get_competitor_posts_test(business_id)
         #print(competitor_posts)
 
         # Generating caption embeddings and saving it in a list of  dicitonaries
@@ -73,7 +85,8 @@ class TrendAnalysisAgent(Agent):
                 if image_url in downloaded_urls:
                     image_bytes = downloaded_urls[image_url]
                     image_embedding = self.embed_image(image_bytes)
-                    image_data.append({"post_id": post["id"], "image_url": image_url, "embedding": image_embedding}) 
+                    if image_embedding is not None:
+                        image_data.append({"post_id": post["id"], "image_url": image_url, "embedding": image_embedding}) 
 
         # Debugging
         #print (image_data)
@@ -95,9 +108,9 @@ class TrendAnalysisAgent(Agent):
         image_embedding_matrix = self.reduce_dimensions(image_embedding_matrix)
 
         # Finding the optimal K value for K means 
-        caption_cluster_k_value = self.find_best_k(caption_embedding_matrix)
+        caption_cluster_k_value = self.find_best_k(caption_embedding_matrix, 5)
         print(f"Best caption K: {caption_cluster_k_value}")
-        image_cluster_k_value = self.find_best_k(image_embedding_matrix)
+        image_cluster_k_value = self.find_best_k(image_embedding_matrix, 7)
         print(f"Best Image K: {image_cluster_k_value}")
 
         # Running K means clustering
@@ -134,8 +147,134 @@ class TrendAnalysisAgent(Agent):
         for post_id in post_clusters:
             clusters_list = post_clusters[post_id]
             post_image_cluster[post_id] = self.assign_dominant_cluster_id(clusters_list)
+
+        # Initialize a dictionary of dictionaries to save capton and image cluster stats, which can be later used to calculate engagement rates and trend scores per clusters
+        caption_cluster_stats = {}
+        for post in competitor_posts:
+            post_id = post["id"]
+            caption_cluster_number = post_caption_cluster.get(post_id)
+
+            if caption_cluster_number is not None:
+                if caption_cluster_number not in caption_cluster_stats:
+                    caption_cluster_stats[caption_cluster_number] = {"engagement_rates": [], "post_count": 0}
+                caption_cluster_stats[caption_cluster_number]["engagement_rates"].append(post["engagement_rate"])
+                caption_cluster_stats[caption_cluster_number]["post_count"] += 1
+
+        image_cluster_stats = {}
+        for post in competitor_posts:
+            post_id = post["id"]
+            image_cluster_number = post_image_cluster.get(post_id)
+
+            if image_cluster_number is not None:
+                if image_cluster_number not in image_cluster_stats:
+                    image_cluster_stats[image_cluster_number] = {"engagement_rates": [], "post_count": 0}
+                image_cluster_stats[image_cluster_number]["engagement_rates"].append(post["engagement_rate"])
+                image_cluster_stats[image_cluster_number]["post_count"] += 1
         
-    
+        # Calculate engagement rates and trend scores per cluster
+        for cluster_id, stats in caption_cluster_stats.items():
+            avg_engagement = sum(stats["engagement_rates"]) / len(stats["engagement_rates"])
+            trend_score = avg_engagement * math.log(stats["post_count"] + 1)
+            caption_cluster_stats[cluster_id]["avg_engagement"] = avg_engagement
+            caption_cluster_stats[cluster_id]["trend_score"] = trend_score
+        
+        for cluster_id, stats in image_cluster_stats.items():
+            avg_engagement = sum(stats["engagement_rates"]) / len(stats["engagement_rates"])
+            trend_score = avg_engagement * math.log(stats["post_count"] + 1)
+            image_cluster_stats[cluster_id]["avg_engagement"] = avg_engagement
+            image_cluster_stats[cluster_id]["trend_score"] = trend_score
+
+        # Debugging
+        print (caption_cluster_stats)
+        # print ()
+        print(image_cluster_stats)
+
+        # Getting best hashtags trends per cluster
+        hashtag_post_count = {}
+        for post in competitor_posts:
+            for hashtag in (post.get("hashtags") or []):
+                hashtag = hashtag.lower().strip()
+                hashtag_post_count[hashtag] = hashtag_post_count.get(hashtag, 0) + 1
+
+        cluster_hashtags = {}
+        for post in competitor_posts:
+            post_id = post["id"]
+            cluster_id = post_image_cluster.get(post_id)
+            hashtags = post.get("hashtags")
+            engagement = post.get("engagement_rate", 0)
+
+            if cluster_id is not None and hashtags:
+                if cluster_id not in cluster_hashtags:
+                    cluster_hashtags[cluster_id] = {}
+
+                for hashtag in hashtags:
+                    hashtag = hashtag.lower().strip()
+                    if hashtag_post_count.get(hashtag, 0) < 3:
+                        continue
+                    if hashtag not in cluster_hashtags[cluster_id]:
+                        cluster_hashtags[cluster_id][hashtag] = 0
+                    cluster_hashtags[cluster_id][hashtag] += engagement
+        
+        best_hashtags = {}
+        for cluster_id in cluster_hashtags:
+            hashtag_scores = cluster_hashtags[cluster_id]
+            sorted_hashtags = sorted(hashtag_scores, key=hashtag_scores.get, reverse=True)
+            best_hashtags[cluster_id] = sorted_hashtags[:10]
+
+        # Debugging
+        #print()
+        #print("Hashtags post count", hashtag_post_count)
+        #print()
+        #print("Cluster's Hashtags", cluster_hashtags)
+        print()
+        print("Best hashtags", best_hashtags)
+
+        # Getting best posting time trends per cluster
+        cluster_times = {}
+        for post in competitor_posts:
+            post_id = post["id"]
+            cluster_id = post_image_cluster.get(post_id)
+            posted_at = post.get("posted_at")
+            engagement = post.get("engagement_rate", 0)
+
+            if cluster_id is not None and posted_at:
+                dt = datetime.fromisoformat(posted_at.replace(" ", "T"))
+                hour = dt.hour
+                if 6 <= hour < 22:
+                    time_range = self.get_posting_time_window(hour)
+
+                    time_bucket = f"{dt.strftime('%A')} {time_range}"
+
+                    if cluster_id not in cluster_times:
+                        cluster_times[cluster_id] = {}
+                    if time_bucket not in cluster_times[cluster_id]:
+                        cluster_times[cluster_id][time_bucket] = []
+
+                    cluster_times[cluster_id][time_bucket].append(engagement)
+        
+        best_posting_times = {}
+        for cluster_id, buckets in cluster_times.items():
+            filtered_buckets = {}
+            for bucket, rates in buckets.items():
+                if len(rates) >= 2:
+                    filtered_buckets[bucket] = rates
+            if not filtered_buckets:
+                filtered_buckets = buckets
+            best_bucket = max(
+                filtered_buckets, 
+                key=lambda bucket: (sum(filtered_buckets[bucket]) / len(filtered_buckets[bucket])) * math.log(len(filtered_buckets[bucket]) + 1)
+                )
+            best_posting_times[cluster_id] = best_bucket
+
+        # Debugging
+        print()
+        #print("Cluster times", cluster_times)
+        #print()
+        print("Best posting times:", best_posting_times)
+
+        # Label image clusters via llm
+
+
     # Creating embeddings for all captions
     async def embed_captions(self, captions):
         try:
@@ -150,6 +289,9 @@ class TrendAnalysisAgent(Agent):
     # Creating embeddings for a single image using catched image bytes
     def embed_image(self, image_bytes):
         try:
+            if not image_bytes or len(image_bytes) < 100:
+                return None
+            
             image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
             inputs = self.clip_processor(images=image, return_tensors="pt")
@@ -181,12 +323,12 @@ class TrendAnalysisAgent(Agent):
             return url, None
     
     # Finds best k value based on silhouette score
-    def find_best_k(self, embeddings):
+    def find_best_k(self, embeddings, max_k):
         si_scores = []
         for k in range(3,12):
             if k >= len(embeddings):
                 break
-            model = KMeans(n_clusters=k, random_state=42)
+            model = KMeans(n_clusters=k, random_state=42, n_init=20)
             preds = model.fit_predict(embeddings)
             si_score = silhouette_score(embeddings, preds)
             si_scores.append(si_score)
@@ -194,7 +336,7 @@ class TrendAnalysisAgent(Agent):
             
 
         best_k = si_scores.index(max(si_scores)) + 3
-        return best_k
+        return min(best_k, max_k)
     
     # Applying PCA to reduce noise in data 
     def reduce_dimensions(self, embeddings):
@@ -202,6 +344,14 @@ class TrendAnalysisAgent(Agent):
         pca = PCA(n_components=n_components, random_state=42)
         return pca.fit_transform(embeddings)
 
+    # Finding the most commonn cluster id from the list of image cluster ids per post
     def assign_dominant_cluster_id(self, cluster_list):
         return Counter(cluster_list).most_common(1)[0][0]
+    
+    # Getting the posting time window for the posted time
+    def get_posting_time_window(self, hour):
+        for start, end, label in self.POSTING_TIME_WINDOWS:
+            if start <= hour < end:
+                return label
+        return None
         
