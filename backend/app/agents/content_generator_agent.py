@@ -58,7 +58,7 @@ class ContentGeneratorAgent(Agent):
         }
 
         timeout = 300 if generate_image else 180
-
+        #  https://flow.lumeniq.cloud/webhook/content-generator
         def _call() -> Any:
             response = requests.post(N8N_CONTENT_WEBHOOK_URL, json=payload, timeout=timeout)
             response.raise_for_status()
