@@ -15,7 +15,7 @@ class SchedulerAgent(Agent):
         Supported actions passed via kwargs['action']: 'schedule', 'reschedule', 'cancel'
 
         Required kwargs per action:
-            schedule:   action, business_id, content_calendar_id, caption, hashtags, scheduled_at,
+            schedule:   action, business_id, caption, hashtags, scheduled_at,
                         media_type ("REELS" or "IMAGE"), reel_video_url (for reels), image_url (for images)
             reschedule: action, business_id, post_id, scheduled_at
             cancel:     action, business_id, post_id
@@ -27,7 +27,6 @@ class SchedulerAgent(Agent):
             if action == "schedule":
                 post = create_scheduled_post(
                     business_id=business_id,
-                    content_calendar_id=kwargs.get("content_calendar_id") or "",
                     caption=kwargs.get("caption") or "",
                     hashtags=kwargs.get("hashtags") or [],
                     scheduled_at=kwargs.get("scheduled_at") or "",

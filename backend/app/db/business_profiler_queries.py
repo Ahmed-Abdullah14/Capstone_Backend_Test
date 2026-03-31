@@ -191,7 +191,6 @@ class BusinessProfilerQueries:
     def schedule_post(
         self,
         business_id: str,
-        content_calendar_id: str,
         scheduled_at: datetime,
         caption: Optional[str] = None,
         media: Optional[dict[str, Any]] = None,
@@ -210,7 +209,6 @@ class BusinessProfilerQueries:
 
         payload: dict[str, Any] = {
             "business_id": business_id,
-            "content_calendar_id": content_calendar_id,
             "scheduled_at": check_utc(scheduled_at).isoformat(),
             "caption": caption,
             "media": media or {},

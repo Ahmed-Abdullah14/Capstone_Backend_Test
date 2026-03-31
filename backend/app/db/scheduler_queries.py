@@ -6,7 +6,6 @@ from app.schemas.business_context import check_utc
 
 def create_scheduled_post(
     business_id: str,
-    content_calendar_id: str,
     caption: str,
     hashtags: list,
     scheduled_at: str,  # ISO 8601 string — will be normalized to UTC
@@ -41,7 +40,6 @@ def create_scheduled_post(
 
     data = {
         "business_id": business_id,
-        "content_calendar_id": content_calendar_id,
         "caption": caption,
         "media": media_payload,
         "hashtags": hashtags,

@@ -8,8 +8,6 @@ from app.agents.scheduler_agent import SchedulerAgent
 #  Test data — update these if testing a different business
 # ──────────────────────────────────────────────
 BUSINESS_ID = "54eb934a-83b3-4ca4-9caf-8b3575e5d3ff"
-CONTENT_CALENDAR_ID = "0fabf794-50b9-438c-af89-b4f3f5c91409"
-
 # Public test image (square aspect ratio for Instagram)
 TEST_IMAGE_URL = "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=1080&q=80"
 
@@ -29,7 +27,6 @@ async def test_schedule_image():
     result = await agent.run(
         action="schedule",
         business_id=BUSINESS_ID,
-        content_calendar_id=CONTENT_CALENDAR_ID,
         caption="Testing image scheduling via run_scheduler.py",
         hashtags=["lumeniq", "test", "coffeepost"],
         scheduled_at=datetime.now(timezone.utc).isoformat(),
@@ -61,7 +58,6 @@ async def test_schedule_reel():
     result = await agent.run(
         action="schedule",
         business_id=BUSINESS_ID,
-        content_calendar_id=CONTENT_CALENDAR_ID,
         caption="Testing reel scheduling via run_scheduler.py",
         hashtags=["lumeniq", "test", "reeltest"],
         scheduled_at=datetime.now(timezone.utc).isoformat(),
@@ -129,7 +125,6 @@ async def main():
     print("  SCHEDULER AGENT TEST SUITE")
     print("=" * 60)
     print(f"  Business ID:          {BUSINESS_ID}")
-    print(f"  Content Calendar ID:  {CONTENT_CALENDAR_ID}")
     print()
 
     print("Which test do you want to run?")
