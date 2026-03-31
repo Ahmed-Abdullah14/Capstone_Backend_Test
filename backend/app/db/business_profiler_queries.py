@@ -286,6 +286,36 @@ class BusinessProfilerQueries:
     async def get_trend_summary(self, business_id: str) -> Optional[TrendSummary]:
         return await asyncio.to_thread(self.get_trend_summary_sync, business_id)
 
+    # Embedding persistence
+    # caption_data/image_data broken up from the trend analysis agent cluster dictionary to table columns
+
+    def save_caption_embeddings(self, caption_data: list[dict[str, Any]]) -> None:
+        payload = [{
+            "post_id": item["post_id"],
+            "caption": item["caption"],
+            "embedding": item["embedding"],
+        }
+        for item in caption_data
+        ]
+        # upsert: if post_id already exists, update the row
+        supabase.table("post_caption_embeddings") \
+            .upsert(payload, on_conflict="post_id") \
+            .execute()
+
+    def save_image_embeddings(self, image_data: list[dict[str, Any]]) -> None:
+        
+        payload = [{
+            "post_id": item["post_id"],
+            "image_url": item["image_url"],
+            "embedding": item["embedding"],
+        }
+        for item in image_data
+        ]
+        supabase.table("post_image_embeddings") \
+            .insert(payload) \
+            .execute()
+
+
 #scheduler queries
 # widescale queires to grab all scheduled posts that are due to be published
 # not tied to a specific business or user, but for the entire platform

@@ -38,20 +38,26 @@ class CompetitorAnalysisResult(BaseModel):
 
 # Pydantic model needed to format Best Combinations, used in TrendSummary & TrendAnalysisResults
 class BestCombination(BaseModel):
-    image_style: str
-    caption_style: str
-    best_hashtags: list[str]
-    best_posting_times: str
+    rank: int
     engagement_multiplier: float
+    image_cluster_id: int
+    caption_cluster_id: int
+    image_style: str
+    image_style_description: Optional[str] = None
+    shot_angle: str
+    lighting: str
+    composition: str
+    color_palette: str
+    caption_style: str
+    caption_tone_summary: Optional[str] = None
+    best_hashtags: list[str]
+    best_posting_time: str
 
 
 # Pydantic model needed to format summary in TrendAnalysisResults
 class TrendSummary(BaseModel):
-    created_at: datetime
-    visual_trends: list[str]
-    caption_trends: list[str]
-    hashtag_trends: list[str]
-    posting_trends: list[str]
+    generated_at: datetime
+    business_id: str
     best_combinations: list[BestCombination]        # Used from class above BestCombination(BaseModel)
 
 # Pydantic model to format Trend Analysis Agent Response 
