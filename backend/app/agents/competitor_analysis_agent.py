@@ -6,7 +6,7 @@ import requests
 from app.agents.base_agent import Agent
 from app.schemas.agent_results import CompetitorAnalysisResult
 from app.schemas.business_context import BusinessContext
-
+from app.config import N8N_COMPETITOR_WEBHOOK_URL
 class CompetitorAnalysisAgent(Agent):
     def __init__(self, kernel):
         super().__init__(kernel=kernel, name="competitor_analysis_agent")
@@ -28,7 +28,7 @@ class CompetitorAnalysisAgent(Agent):
         }
 
         def _post_webhook() -> Any:
-            response = requests.post("https://flow.lumeniq.cloud/webhook-test/811e1327-00c3-48e7-ba04-dcabeabe25a7", json=payload, timeout=120)
+            response = requests.post(N8N_COMPETITOR_WEBHOOK_URL, json=payload, timeout=120)
             response.raise_for_status()
             return response.json()
 
