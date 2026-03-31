@@ -72,6 +72,7 @@ class TrendAnalysisAgent(Agent):
         #print(caption_data)
         print(len(caption_data))
         #print()
+        self.business_profiler_queries.save_caption_embeddings(caption_data)
 
         # Downloading all images concurrently to reduce downloading bottleneck
         all_urls = []
@@ -93,6 +94,8 @@ class TrendAnalysisAgent(Agent):
         # Debugging
         #print (image_data)
         print(len(image_data))
+        #print()
+        self.business_profiler_queries.save_image_embeddings(image_data)
 
         # Converting caption and image records to embedding matrices
         caption_embedding_records = []
@@ -385,13 +388,12 @@ class TrendAnalysisAgent(Agent):
 
         # Building trend summary
         trend_summary = {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "business_id": business_id,
             "best_combinations": best_combinations
         }
 
         print()
         print(json.dumps(trend_summary, indent=2))
+        self.business_profiler_queries.save_trend_summary(business_id, trend_summary)
 
         return TrendAnalysisResult(
             business_id=business_id,
