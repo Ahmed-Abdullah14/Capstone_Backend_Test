@@ -225,7 +225,10 @@ class BusinessProfilerQueries:
             .execute()
         )
         return result.data or []
-
+    
+    async def get_competitor_list(self, business_id: str) -> list[dict[str, Any]]:
+        return await asyncio.to_thread(self.get_competitor_list, business_id)
+    
     def get_competitor_posts(self, business_id: str) -> list[dict[str, Any]]:
         result = (
             supabase.table("competitor_posts")
