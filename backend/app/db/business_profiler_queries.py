@@ -235,6 +235,9 @@ class BusinessProfilerQueries:
             .execute()
         )
         return result.data or []
+    
+    async def get_competitor_posts(self, business_id: str) -> list[dict[str, Any]]:
+        return await asyncio.to_thread(self.get_competitor_posts, business_id)
 
     # Hashtags (from competitor_posts.hashtags)
     # Async because manager_agent.py awaits this method.
