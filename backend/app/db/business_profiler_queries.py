@@ -308,14 +308,6 @@ class BusinessProfilerQueries:
     # the relevant fields as individual rows.
 
     def save_caption_embeddings(self, caption_data: list[dict[str, Any]]) -> None:
-        """Persist caption embeddings.
-
-        Each element of *caption_data* is:
-            {"post_id": <uuid>, "caption": <str>, "embedding": <list[float]>}
-
-        post_id is expected to be unique (one caption per post).  Duplicates
-        are skipped via an upsert on post_id so re-runs are safe.
-        """
         for item in caption_data:
             payload = {
                 "post_id": item["post_id"],
@@ -328,14 +320,6 @@ class BusinessProfilerQueries:
                 .execute()
 
     def save_image_embeddings(self, image_data: list[dict[str, Any]]) -> None:
-        """Persist image embeddings.
-
-        Each element of *image_data* is:
-            {"post_id": <uuid>, "image_url": <str>, "embedding": <list[float]>}
-
-        post_id does NOT have to be unique here — a single post can have
-        multiple images, each embedded separately.
-        """
         for item in image_data:
             payload = {
                 "post_id": item["post_id"],
