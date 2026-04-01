@@ -9,6 +9,6 @@ class Agent(ABC):
         self.name = name
 
     @abstractmethod
-    async def run(self, **kwargs):
+    async def run(self):
         pass
 

@@ -9,9 +9,10 @@ def create_scheduled_post(
     caption: str,
     hashtags: list,
     scheduled_at: str,  # ISO 8601 string — will be normalized to UTC
-    media_type: str = "REELS",
+    media_type: Optional[str] = None,
     reel_video_url: Optional[str] = None,
     image_url: Optional[str] = None,
+    status: str = "scheduled",
 ) -> list:
     """
     Inserts a new post into calendar_posts for n8n to pick up and publish later.
@@ -26,7 +27,9 @@ def create_scheduled_post(
     """
     utc_scheduled_at = check_utc(datetime.fromisoformat(scheduled_at)).isoformat()
 
-    if media_type == "REELS":
+    if status == "draft":
+        media_payload = {}
+    elif media_type == "REELS":
         if not reel_video_url:
             raise ValueError("reel_video_url is required for REELS")
         media_payload = {"reel_video_url": reel_video_url}
@@ -43,7 +46,7 @@ def create_scheduled_post(
         "media": media_payload,
         "hashtags": hashtags,
         "scheduled_at": utc_scheduled_at,
-        "status": "scheduled",  # n8n watches for this status
+        "status": status,  # n8n watches for scheduled status only
     }
 
     response = supabase.table("calendar_posts").insert(data).execute()

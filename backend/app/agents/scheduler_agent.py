@@ -14,33 +14,36 @@ class SchedulerAgent(Agent):
     def __init__(self, kernel):
         super().__init__(kernel=kernel, name="scheduler_agent")
 
-    async def run(self, **kwargs) -> SchedulerResult:
+    async def run(
+        self,
+        *,
+        action: str,
+        context=None,
+        business_id: str = "",
+        caption: str | None = None,
+        hashtags: list[str] | None = None,
+        scheduled_at: str | None = None,
+        media_type: str | None = None,
+        image_url: str | None = None,
+        reel_video_url: str | None = None,
+        post_id: str | None = None,
+    ) -> SchedulerResult:
         """
         Routes the user's scheduling intent to the correct database function.
         Python only writes to the DB — n8n handles the actual Instagram posting.
 
-        Supported actions passed via kwargs['action']: 'schedule', 'reschedule', 'cancel'
+        Supported actions: 'schedule', 'reschedule', 'cancel'
 
         Can be called two ways:
-          1. Explicitly (from run_scheduler.py / tests) — pass all fields as kwargs
+          1. Explicitly (from run_scheduler.py / tests) — pass scheduling fields directly
           2. From manager_agent — pass context + action only; missing fields are
              auto-fetched from the DB (latest content_idea / calendar_post)
         """
-        context = kwargs.get("context")
-        action: str = kwargs.get("action") or ""
-
         # Extract business_id from context if not passed directly
-        business_id: str = kwargs.get("business_id") or (context.business_id if context else "")
+        business_id = business_id or (context.business_id if context else "")
 
         try:
             if action == "schedule":
-                caption      = kwargs.get("caption")
-                hashtags     = kwargs.get("hashtags")
-                scheduled_at = kwargs.get("scheduled_at")
-                media_type   = kwargs.get("media_type")
-                image_url    = kwargs.get("image_url")
-                reel_video_url = kwargs.get("reel_video_url")
-
                 # Auto-fetch caption/hashtags/image from latest content idea if not passed
                 if not caption or not hashtags:
                     idea = get_latest_content_idea(business_id)
@@ -69,13 +72,22 @@ class SchedulerAgent(Agent):
                     elif reel_video_url:
                         media_type = "REELS"
                     else:
+                        # No media yet: store as draft so it can be completed later.
+                        post = create_scheduled_post(
+                            business_id=business_id,
+                            caption=caption or "",
+                            hashtags=hashtags or [],
+                            scheduled_at=scheduled_at,
+                            status="draft",
+                        )
                         return SchedulerResult(
                             business_id=business_id,
-                            success=False,
+                            success=True,
                             message=(
-                                "No media URL found. Please provide an image_url or "
-                                "reel_video_url to schedule this post."
+                                "No media URL found. Saved this post as draft; add "
+                                "image_url or reel_video_url to schedule it."
                             ),
+                            calendar_post_id=post[0]["id"],
                         )
 
                 post = create_scheduled_post(
@@ -86,6 +98,7 @@ class SchedulerAgent(Agent):
                     media_type=media_type,
                     reel_video_url=reel_video_url,
                     image_url=image_url,
+                    status="scheduled",
                 )
                 return SchedulerResult(
                     business_id=business_id,
@@ -95,9 +108,6 @@ class SchedulerAgent(Agent):
                 )
 
             elif action == "reschedule":
-                post_id      = kwargs.get("post_id")
-                scheduled_at = kwargs.get("scheduled_at")
-
                 # Auto-fetch the most recent scheduled post if post_id not passed
                 if not post_id:
                     latest = get_latest_scheduled_post(business_id)
@@ -124,8 +134,6 @@ class SchedulerAgent(Agent):
                 )
 
             elif action == "cancel":
-                post_id = kwargs.get("post_id")
-
                 # Auto-fetch the most recent scheduled post if post_id not passed
                 if not post_id:
                     latest = get_latest_scheduled_post(business_id)
