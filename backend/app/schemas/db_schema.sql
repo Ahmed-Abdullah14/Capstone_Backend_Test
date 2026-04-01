@@ -43,13 +43,14 @@ CREATE TABLE public.businesses (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   user_id uuid NOT NULL,
+  business_format text,
+  onboarding_json jsonb NOT NULL DEFAULT '{}'::jsonb,
   CONSTRAINT businesses_pkey PRIMARY KEY (id),
   CONSTRAINT businesses_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.calendar_posts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   business_id uuid NOT NULL,
-  content_calendar_id uuid NOT NULL,
   status USER-DEFINED NOT NULL DEFAULT 'draft'::scheduled_post_status,
   scheduled_at timestamp with time zone,
   approved_at timestamp with time zone,
@@ -62,8 +63,7 @@ CREATE TABLE public.calendar_posts (
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   day_of_the_week integer,
   CONSTRAINT calendar_posts_pkey PRIMARY KEY (id),
-  CONSTRAINT calendar_posts_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
-  CONSTRAINT calendar_posts_content_calendar_id_fkey FOREIGN KEY (content_calendar_id) REFERENCES public.content_calendar_weekly_view(id)
+  CONSTRAINT calendar_posts_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
 );
 CREATE TABLE public.clusters (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -129,13 +129,8 @@ CREATE TABLE public.content_ideas (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   business_id uuid NOT NULL,
   trend_summary_id uuid,
-  title text NOT NULL,
-  concept text,
-  shot_list jsonb NOT NULL DEFAULT '[]'::jsonb,
+  content_ideas jsonb NOT NULL DEFAULT '[]'::jsonb,
   caption text,
-  assets jsonb NOT NULL DEFAULT '{}'::jsonb,
-  status USER-DEFINED NOT NULL DEFAULT 'pending'::idea_status,
-  score double precision,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   hashtags ARRAY NOT NULL DEFAULT '{}'::text[],
@@ -172,17 +167,17 @@ CREATE TABLE public.payments (
 );
 CREATE TABLE public.post_caption_embeddings (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  post_id uuid NOT NULL,
+  post_id uuid NOT NULL UNIQUE,
   embedding USER-DEFINED NOT NULL,
-  captions text NOT NULL,
+  caption text NOT NULL,
   CONSTRAINT post_caption_embeddings_pkey PRIMARY KEY (id),
   CONSTRAINT post_caption_embeddings_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.competitor_posts(id)
 );
 CREATE TABLE public.post_image_embeddings (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  post_id uuid NOT NULL UNIQUE,
+  post_id uuid NOT NULL,
   embedding USER-DEFINED NOT NULL,
-  image jsonb NOT NULL,
+  image_url jsonb NOT NULL,
   CONSTRAINT post_image_embeddings_pkey PRIMARY KEY (id),
   CONSTRAINT post_image_embeddings_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.competitor_posts(id)
 );
@@ -212,12 +207,25 @@ CREATE TABLE public.publish_attempts (
   CONSTRAINT publish_attempts_pkey PRIMARY KEY (id),
   CONSTRAINT publish_attempts_calendar_post_id_fkey FOREIGN KEY (calendar_post_id) REFERENCES public.calendar_posts(id)
 );
+CREATE TABLE public.social_accounts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  business_id uuid NOT NULL,
+  platform text NOT NULL DEFAULT 'instagram'::text,
+  account_name text,
+  access_token text NOT NULL,
+  ig_account_id text,
+  fb_page_id text,
+  token_expires_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT social_accounts_pkey PRIMARY KEY (id),
+  CONSTRAINT social_accounts_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
+);
 CREATE TABLE public.trend_summaries (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   business_id uuid NOT NULL,
   summary jsonb NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
-  updated_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT trend_summaries_pkey PRIMARY KEY (id),
   CONSTRAINT trend_summaries_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
 );
