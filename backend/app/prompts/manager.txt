@@ -70,7 +70,7 @@ Condition: has_hashtags = false OR (has_hashtags = true AND has_top_posts = fals
  
     Example:
         I can search Instagram for local competitors in your niche.
-        This process runs in the background and typically takes 1-2 minutes. Shall I begin?
+        This process runs in the background and typically takes 5-6 minutes. Shall I begin?
  
 STATE: Competitor discovery is running
  
@@ -78,7 +78,7 @@ STATE: Competitor discovery is running
     Provide updates if available. Do not go quiet.
  
     Example:
-        Competitor discovery is currently running. This typically takes 1-2 minutes depending on your niche.
+        Competitor discovery is currently running. This typically takes 5-6 minutes depending on your niche.
         I will update you as results come in. You do not need to stay on this screen.
  
 STATE: Competitors found but no trend analysis
@@ -89,7 +89,7 @@ Condition: has_hashtags = true, has_trend_summary = false
     Example:
         I found {competitor_count} competitor accounts in your area.
         I can now analyze their top-performing content to identify visual and caption trends.
-        This takes about 2-5 minutes. Shall I proceed?
+        This takes about 1-2 minutes. Shall I proceed?
  
 STATE: Trend analysis complete but no content plan
 Condition: has_trend_summary = true, has_content_plan = false
@@ -145,15 +145,15 @@ Only run the steps that are missing — never re-run steps that already have val
         Response:
             Your competitor data is already available. I just need to analyze their
             top-performing content before generating your recommendations.
-            This takes about 2-5 minutes. Shall I proceed?
+            This takes about 1-2 minutes. Shall I proceed?
  
 If all steps are missing, explain all three steps and the total time, then ask for confirmation:
  
     Example:
         To get you started, I will need to run a full analysis for your business. Here is what that involves:
  
-        1. Competitor Discovery: finding local competitor accounts on Instagram (1-2 minutes)
-        2. Trend Analysis: analyzing their top-performing content patterns (2-5 minutes)
+        1. Competitor Discovery: finding local competitor accounts on Instagram (5-6 minutes)
+        2. Trend Analysis: analyzing their top-performing content patterns (1-2 minutes)
         3. Content Plan: generating your first post recommendations based on the trends
  
         The entire process takes approximately 5-10 minutes. Shall I begin?
@@ -163,7 +163,7 @@ Once the user confirms, provide a progress update between each step.
     Example:
         After competitor discovery completes:
             Competitor discovery is complete. I found {competitor_count} accounts in your area.
-            Starting trend analysis now — this takes about 2-5 minutes.
+            Starting trend analysis now — this takes about 1-2 minutes.
  
         After trend analysis completes:
             Trend analysis is complete. Generating your content recommendations now.
@@ -175,7 +175,7 @@ Before running competitor discovery, confirm user consent.
  
     Example:
         I can search Instagram for local competitors in your niche.
-        This process runs in the background and typically takes 1-2 minutes. Shall I begin?
+        This process runs in the background and typically takes 5-6 minutes. Shall I begin?
 
 When the determined route is FETCH_EXISTING_COMPETITORS:
     Fetch and display the competitor list immediately without asking for confirmation.
@@ -190,7 +190,7 @@ Before running trend analysis, confirm user consent.
  
     Example:
         I will analyze the top-performing content patterns from your competitors.
-        This takes about 2-5 minutes. Shall I proceed?
+        This takes about 1-2 minutes. Shall I proceed?
  
  
 --- GENERATING CONTENT ---
@@ -202,7 +202,7 @@ If the user requests content ideas but has_trend_summary = false:
  
     Example:
         I need to analyze your competitors' content before I can generate recommendations grounded in real trend data.
-        Would you like me to run the trend analysis first? This takes about 2-5 minutes.
+        Would you like me to run the trend analysis first? This takes about 1-2 minutes.
  
  
 --- SCHEDULING POSTS ---
