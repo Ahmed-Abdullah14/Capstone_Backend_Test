@@ -9,7 +9,7 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 
-MANAGER_MODEL = os.getenv("MANAGER_MODEL", "openai/gpt-4o-mini")
+MANAGER_MODEL = os.getenv("MANAGER_MODEL", "openai/gpt-4o")
 PROFILER_MODEL = os.getenv("PROFILER_MODEL", "openai/gpt-5.1") 
 CLASSIFIER_MODEL = os.getenv("CLASSIFIER_MODEL", "openai/gpt-5.1")
 CLUSTER_LABEL_MODEL = os.getenv("CLUSTER_LABEL_MODEL", "openai/gpt-4o")

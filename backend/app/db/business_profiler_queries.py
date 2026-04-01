@@ -216,7 +216,7 @@ class BusinessProfilerQueries:
         return result.data[0]
 
     # Competitors
-    def get_competitor_list(self, business_id: str) -> list[dict[str, Any]]:
+    def get_competitor_list_sync(self, business_id: str) -> list[dict[str, Any]]:
         result = (
             supabase.table("competitors")
             .select("*")
@@ -225,9 +225,9 @@ class BusinessProfilerQueries:
             .execute()
         )
         return result.data or []
-    
+
     async def get_competitor_list(self, business_id: str) -> list[dict[str, Any]]:
-        return await asyncio.to_thread(self.get_competitor_list, business_id)
+        return await asyncio.to_thread(self.get_competitor_list_sync, business_id)
     
     def get_competitor_posts(self, business_id: str) -> list[dict[str, Any]]:
         result = (
@@ -238,9 +238,6 @@ class BusinessProfilerQueries:
             .execute()
         )
         return result.data or []
-    
-    async def get_competitor_posts(self, business_id: str) -> list[dict[str, Any]]:
-        return await asyncio.to_thread(self.get_competitor_posts, business_id)
 
     # Hashtags (from competitor_posts.hashtags)
     # Async because manager_agent.py awaits this method.

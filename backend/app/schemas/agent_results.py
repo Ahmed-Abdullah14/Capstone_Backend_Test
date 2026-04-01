@@ -56,8 +56,6 @@ class BestCombination(BaseModel):
 
 # Pydantic model needed to format summary in TrendAnalysisResults
 class TrendSummary(BaseModel):
-    generated_at: datetime
-    business_id: str
     best_combinations: list[BestCombination]        # Used from class above BestCombination(BaseModel)
 
 # Pydantic model to format Trend Analysis Agent Response 

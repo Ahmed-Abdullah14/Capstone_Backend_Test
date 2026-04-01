@@ -26,9 +26,9 @@ class CompetitorAnalysisAgent(Agent):
                 "max": ideal_follower_max,
             },
         }
-
+        print(N8N_COMPETITOR_WEBHOOK_URL)
         def _post_webhook() -> Any:
-            response = requests.post(N8N_COMPETITOR_WEBHOOK_URL, json=payload, timeout=120)
+            response = requests.post(N8N_COMPETITOR_WEBHOOK_URL, json=payload, timeout=600)
             response.raise_for_status()
             return response.json()
 
