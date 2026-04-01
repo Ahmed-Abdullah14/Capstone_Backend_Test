@@ -75,8 +75,6 @@ async def header_auth_callback(headers: dict) -> Optional[cl.User]:
 
     user_id = user_id_cookie.value if user_id_cookie else DEFAULT_USER_ID
     business_id = business_id_cookie.value if business_id_cookie else DEFAULT_BUSINESS_ID
-    
-    print(f"user_id: {user_id}, business_id: {business_id}")
 
     return cl.User(
         identifier=user_id,
