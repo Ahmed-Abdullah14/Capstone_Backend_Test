@@ -21,8 +21,8 @@ async def on_chat_start():
     thread = ChatHistoryAgentThread(chat_history=ChatHistory())
     cl.user_session.set("thread", thread)
 
-    user_id = "73bed820-f631-4b68-a5c1-8cf6044fb887"
-    business_id = "54eb934a-83b3-4ca4-9caf-8b3575e5d3ff"    # Get from DB
+    user_id = "f4ba8bfb-2676-4c46-abb0-bd2885eae15e"
+    business_id = "c44d860e-f4d4-4f04-9646-b117d4f517bc"    # Get from DB
 
     cl.user_session.set("user_id", user_id)
     cl.user_session.set("business_id", business_id)
@@ -68,14 +68,10 @@ async def on_message(message: cl.Message):
             pending_pipeline_end_at=pending_pipeline_end_at
         )
 
-        
         if manager_decision.route not in [RouteType.UNKNOWN] and manager_decision.intent not in [IntentType.CONFIRM, IntentType.CANCEL]:
             cl.user_session.set("pending_route", manager_decision.route)
             cl.user_session.set("pending_pipeline_end_at", manager_decision.pipeline_end_at)
-        elif manager_decision.intent == IntentType.CANCEL:
-            cl.user_session.set("pending_route", None)
-            cl.user_session.set("pending_pipeline_end_at", None)
-        elif manager_decision.intent == IntentType.CONFIRM:
+        elif manager_decision.intent in [IntentType.CANCEL, IntentType.CONFIRM]:
             cl.user_session.set("pending_route", None)
             cl.user_session.set("pending_pipeline_end_at", None)
 

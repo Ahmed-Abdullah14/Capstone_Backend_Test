@@ -5,7 +5,7 @@ from typing import Any, Optional
 
 import requests
 from app.agents.base_agent import Agent
-from app.schemas.agent_results import ContentGeneratorResult, PhotoDetails
+from app.schemas.agent_results import ContentGeneratorResult, PhotoDetails, CaptionDetails, HashtagDetails, PostSettings
 from app.schemas.business_context import BusinessContext
 from app.schemas.agent_results import TrendSummary
 from app.config import N8N_CONTENT_WEBHOOK_URL
@@ -94,21 +94,44 @@ class ContentGeneratorAgent(Agent):
             photo_data = result.get("photo") or {}
             photo = PhotoDetails(
                 angle=photo_data.get("angle", ""),
+                composition=photo_data.get("composition"),
+                lighting=photo_data.get("lighting"),
+                props=photo_data.get("props"),
+                color_palette=photo_data.get("color_palette"),
                 instructions=photo_data.get("instructions", ""),
             ) if photo_data else None
 
             caption_data = result.get("caption") or {}
+            caption = CaptionDetails(
+                hook=caption_data.get("hook"),
+                body=caption_data.get("body"),
+                cta=caption_data.get("cta"),
+                full_caption=caption_data.get("full_caption"),
+                emoji=caption_data.get("emoji"),
+            ) if caption_data else None
+
             hashtag_data = result.get("hashtags") or {}
+            hashtags = HashtagDetails(
+                local=hashtag_data.get("local"),
+                niche=hashtag_data.get("niche"),
+                all=hashtag_data.get("all"),
+            ) if hashtag_data else None
+
             post_data = result.get("post_settings") or {}
+            post_settings = PostSettings(
+                best_format=post_data.get("best_format"),
+                best_time_to_post=post_data.get("best_time_to_post"),
+                platform_fit=post_data.get("platform_fit"),
+            ) if post_data else None
 
             return ContentGeneratorResult(
                 business_id=business_id,
                 success=True,
                 mode=mode,
                 photo=photo,
-                caption=caption_data.get("full_caption"),
-                hashtags=hashtag_data.get("all"),
-                best_posting_time=post_data.get("best_time_to_post"),
+                caption=caption,
+                hashtags=hashtags,
+                post_settings=post_settings,
                 generated_at=datetime.now(timezone.utc),
             )
 
