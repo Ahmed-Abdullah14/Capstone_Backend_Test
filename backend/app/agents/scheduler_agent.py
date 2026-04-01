@@ -56,11 +56,6 @@ class SchedulerAgent(Agent):
                     caption  = caption  or idea.get("caption") or ""
                     hashtags = hashtags or idea.get("hashtags") or []
 
-                    # Pull image_url from assets if not explicitly provided
-                    if not image_url and not reel_video_url:
-                        assets = idea.get("assets") or {}
-                        image_url = assets.get("image_url")
-
                 # Infer media_type from whichever URL is present
                 if not media_type:
                     if image_url:
