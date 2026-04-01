@@ -61,10 +61,6 @@ class SchedulerAgent(Agent):
                         assets = idea.get("assets") or {}
                         image_url = assets.get("image_url")
 
-                # Default to now if no scheduled time provided
-                if not scheduled_at:
-                    scheduled_at = datetime.now(timezone.utc).isoformat()
-
                 # Infer media_type from whichever URL is present
                 if not media_type:
                     if image_url:
@@ -77,7 +73,7 @@ class SchedulerAgent(Agent):
                             business_id=business_id,
                             caption=caption or "",
                             hashtags=hashtags or [],
-                            scheduled_at=scheduled_at,
+                            scheduled_at=None,
                             status="draft",
                         )
                         return SchedulerResult(
@@ -89,6 +85,10 @@ class SchedulerAgent(Agent):
                             ),
                             calendar_post_id=post[0]["id"],
                         )
+
+                # Scheduled posts must have a publish time
+                if not scheduled_at:
+                    scheduled_at = datetime.now(timezone.utc).isoformat()
 
                 post = create_scheduled_post(
                     business_id=business_id,

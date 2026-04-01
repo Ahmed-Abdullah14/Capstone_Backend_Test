@@ -8,7 +8,7 @@ def create_scheduled_post(
     business_id: str,
     caption: str,
     hashtags: list,
-    scheduled_at: str,  # ISO 8601 string — will be normalized to UTC
+    scheduled_at: Optional[str] = None,  # ISO 8601 string — normalized to UTC
     media_type: Optional[str] = None,
     reel_video_url: Optional[str] = None,
     image_url: Optional[str] = None,
@@ -25,7 +25,11 @@ def create_scheduled_post(
         { "reel_video_url": "..." }  ->  Reel
         { "url": "..." }            ->  Image
     """
-    utc_scheduled_at = check_utc(datetime.fromisoformat(scheduled_at)).isoformat()
+    utc_scheduled_at = (
+        check_utc(datetime.fromisoformat(scheduled_at)).isoformat()
+        if scheduled_at
+        else None
+    )
 
     if status == "draft":
         media_payload = {}
