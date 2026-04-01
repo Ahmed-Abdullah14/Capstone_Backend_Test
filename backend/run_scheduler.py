@@ -2,12 +2,18 @@ import asyncio
 from datetime import datetime, timezone
 from semantic_kernel import Kernel
 from app.agents.scheduler_agent import SchedulerAgent
+from app.schemas.business_context import BusinessContext
 
 
 # ──────────────────────────────────────────────
 #  Test data — update these if testing a different business
 # ──────────────────────────────────────────────
 BUSINESS_ID = "54eb934a-83b3-4ca4-9caf-8b3575e5d3ff"
+
+# Real business IDs that have content_ideas rows in Supabase
+BUSINESS_ID_CHOICES_CAFE  = "c44d860e-f4d4-4f04-9646-b117d4f517bc"   # Choices Cafe YYC
+BUSINESS_ID_COLD_MORNINGS = "f61cd8dd-f1cb-4664-bb9f-8a332c90e921"   # Cold Mornings Cafe
+
 # Public test image (square aspect ratio for Instagram)
 TEST_IMAGE_URL = "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=1080&q=80"
 
@@ -120,6 +126,47 @@ async def test_cancel(post_id: str):
         print(f"\n  ERROR: {result.message}")
 
 
+async def test_manager_style_schedule(business_id: str, label: str, image_url: str):
+    """
+    Test 6 & 7: Simulate exactly how manager_agent calls scheduler_agent —
+    only context + action are passed. Caption and hashtags are auto-fetched
+    from the latest content_idea in Supabase for that business.
+
+    image_url must be passed explicitly here because the content_ideas rows
+    currently have empty assets (no image saved yet).
+    """
+    agent = SchedulerAgent(kernel=Kernel())
+    context = BusinessContext(user_id="test-user", business_id=business_id)
+
+    print("\n" + "=" * 60)
+    print(f"TEST: Manager-style schedule — {label}")
+    print(f"  Business ID: {business_id}")
+    print("=" * 60)
+    print("  Passing: context + action + image_url only")
+    print("  Auto-fetching: caption and hashtags from content_ideas table")
+
+    result = await agent.run(
+        context=context,
+        action="schedule",
+        image_url=image_url,    # provided because assets is empty in these rows
+    )
+
+    print(f"\n  Success:          {result.success}")
+    print(f"  Message:          {result.message}")
+    print(f"  Calendar Post ID: {result.calendar_post_id}")
+
+    if result.success:
+        print("\n  >>> Check Supabase calendar_posts — new row should show:")
+        print(f"       business_id = {business_id}")
+        print("       status      = scheduled")
+        print("       caption     = (pulled from content_ideas)")
+        print("       hashtags    = (pulled from content_ideas)")
+    else:
+        print(f"\n  ERROR: {result.message}")
+
+    return result.calendar_post_id
+
+
 async def main():
     print("=" * 60)
     print("  SCHEDULER AGENT TEST SUITE")
@@ -133,9 +180,11 @@ async def main():
     print("  3) Reschedule an existing post")
     print("  4) Cancel an existing post")
     print("  5) Run all tests (schedule image, reschedule it, then cancel it)")
+    print("  6) Manager-style: auto-fetch from Choices Cafe content_idea")
+    print("  7) Manager-style: auto-fetch from Cold Mornings Cafe content_idea")
     print()
 
-    choice = input("Enter choice (1-5): ").strip()
+    choice = input("Enter choice (1-7): ").strip()
 
     if choice == "1":
         await test_schedule_image()
@@ -156,6 +205,20 @@ async def main():
         if post_id:
             await test_reschedule(post_id)
             await test_cancel(post_id)
+
+    elif choice == "6":
+        await test_manager_style_schedule(
+            business_id=BUSINESS_ID_CHOICES_CAFE,
+            label="Choices Cafe YYC",
+            image_url=TEST_IMAGE_URL,
+        )
+
+    elif choice == "7":
+        await test_manager_style_schedule(
+            business_id=BUSINESS_ID_COLD_MORNINGS,
+            label="Cold Mornings Cafe",
+            image_url=TEST_IMAGE_URL,
+        )
 
     else:
         print("Invalid choice.")

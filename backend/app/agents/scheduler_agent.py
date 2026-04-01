@@ -64,7 +64,19 @@ class SchedulerAgent(Agent):
 
                 # Infer media_type from whichever URL is present
                 if not media_type:
-                    media_type = "IMAGE" if image_url else "REELS"
+                    if image_url:
+                        media_type = "IMAGE"
+                    elif reel_video_url:
+                        media_type = "REELS"
+                    else:
+                        return SchedulerResult(
+                            business_id=business_id,
+                            success=False,
+                            message=(
+                                "No media URL found. Please provide an image_url or "
+                                "reel_video_url to schedule this post."
+                            ),
+                        )
 
                 post = create_scheduled_post(
                     business_id=business_id,
