@@ -49,7 +49,6 @@ CREATE TABLE public.businesses (
 CREATE TABLE public.calendar_posts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   business_id uuid NOT NULL,
-  content_calendar_id uuid NOT NULL,
   status USER-DEFINED NOT NULL DEFAULT 'draft'::scheduled_post_status,
   scheduled_at timestamp with time zone,
   approved_at timestamp with time zone,
@@ -62,8 +61,7 @@ CREATE TABLE public.calendar_posts (
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   day_of_the_week integer,
   CONSTRAINT calendar_posts_pkey PRIMARY KEY (id),
-  CONSTRAINT calendar_posts_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id),
-  CONSTRAINT calendar_posts_content_calendar_id_fkey FOREIGN KEY (content_calendar_id) REFERENCES public.content_calendar_weekly_view(id)
+  CONSTRAINT calendar_posts_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id)
 );
 CREATE TABLE public.clusters (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

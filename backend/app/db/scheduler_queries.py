@@ -24,7 +24,6 @@ def create_scheduled_post(
         { "reel_video_url": "..." }  ->  Reel
         { "url": "..." }            ->  Image
     """
-    # Normalize to UTC so n8n (which runs on UTC) fires at the right time
     utc_scheduled_at = check_utc(datetime.fromisoformat(scheduled_at)).isoformat()
 
     if media_type == "REELS":
@@ -62,7 +61,7 @@ def reschedule_post(post_id: str, new_scheduled_at: str) -> list:
         supabase.table("calendar_posts")
         .update(data)
         .eq("id", post_id)
-        .select()           # Ensures the updated row is returned
+        .select()
         .execute()
     )
     return response.data
@@ -74,7 +73,42 @@ def cancel_post(post_id: str) -> list:
         supabase.table("calendar_posts")
         .update({"status": "draft"})
         .eq("id", post_id)
-        .select()           # Ensures the updated row is returned
+        .select()
         .execute()
     )
     return response.data
+
+
+def get_latest_content_idea(business_id: str) -> Optional[dict]:
+    """
+    Fetches the most recently created content idea for a business.
+    Used by SchedulerAgent to pull caption, hashtags, and image_url
+    when the manager doesn't pass them explicitly.
+    """
+    response = (
+        supabase.table("content_ideas")
+        .select("*")
+        .eq("business_id", business_id)
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    return response.data[0] if response.data else None
+
+
+def get_latest_scheduled_post(business_id: str) -> Optional[dict]:
+    """
+    Fetches the most recently created scheduled post for a business.
+    Used by SchedulerAgent to get post_id for reschedule/cancel
+    when the manager doesn't pass it explicitly.
+    """
+    response = (
+        supabase.table("calendar_posts")
+        .select("*")
+        .eq("business_id", business_id)
+        .eq("status", "scheduled")
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    return response.data[0] if response.data else None

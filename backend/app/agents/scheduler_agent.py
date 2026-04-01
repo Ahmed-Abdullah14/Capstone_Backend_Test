@@ -1,5 +1,12 @@
+from datetime import datetime, timezone
 from app.agents.base_agent import Agent
-from app.db.scheduler_queries import create_scheduled_post, reschedule_post, cancel_post
+from app.db.scheduler_queries import (
+    create_scheduled_post,
+    reschedule_post,
+    cancel_post,
+    get_latest_content_idea,
+    get_latest_scheduled_post,
+)
 from app.schemas.agent_results import SchedulerResult
 
 
@@ -14,49 +21,111 @@ class SchedulerAgent(Agent):
 
         Supported actions passed via kwargs['action']: 'schedule', 'reschedule', 'cancel'
 
-        Required kwargs per action:
-            schedule:   action, business_id, caption, hashtags, scheduled_at,
-                        media_type ("REELS" or "IMAGE"), reel_video_url (for reels), image_url (for images)
-            reschedule: action, business_id, post_id, scheduled_at
-            cancel:     action, business_id, post_id
+        Can be called two ways:
+          1. Explicitly (from run_scheduler.py / tests) — pass all fields as kwargs
+          2. From manager_agent — pass context + action only; missing fields are
+             auto-fetched from the DB (latest content_idea / calendar_post)
         """
+        context = kwargs.get("context")
         action: str = kwargs.get("action") or ""
-        business_id: str = kwargs.get("business_id") or ""
+
+        # Extract business_id from context if not passed directly
+        business_id: str = kwargs.get("business_id") or (context.business_id if context else "")
 
         try:
             if action == "schedule":
+                caption      = kwargs.get("caption")
+                hashtags     = kwargs.get("hashtags")
+                scheduled_at = kwargs.get("scheduled_at")
+                media_type   = kwargs.get("media_type")
+                image_url    = kwargs.get("image_url")
+                reel_video_url = kwargs.get("reel_video_url")
+
+                # Auto-fetch caption/hashtags/image from latest content idea if not passed
+                if not caption or not hashtags:
+                    idea = get_latest_content_idea(business_id)
+                    if not idea:
+                        return SchedulerResult(
+                            business_id=business_id,
+                            success=False,
+                            message="No content idea found. Please generate content first before scheduling.",
+                        )
+                    caption  = caption  or idea.get("caption") or ""
+                    hashtags = hashtags or idea.get("hashtags") or []
+
+                    # Pull image_url from assets if not explicitly provided
+                    if not image_url and not reel_video_url:
+                        assets = idea.get("assets") or {}
+                        image_url = assets.get("image_url")
+
+                # Default to now if no scheduled time provided
+                if not scheduled_at:
+                    scheduled_at = datetime.now(timezone.utc).isoformat()
+
+                # Infer media_type from whichever URL is present
+                if not media_type:
+                    media_type = "IMAGE" if image_url else "REELS"
+
                 post = create_scheduled_post(
                     business_id=business_id,
-                    caption=kwargs.get("caption") or "",
-                    hashtags=kwargs.get("hashtags") or [],
-                    scheduled_at=kwargs.get("scheduled_at") or "",
-                    media_type=kwargs.get("media_type") or "REELS",
-                    reel_video_url=kwargs.get("reel_video_url"),
-                    image_url=kwargs.get("image_url"),
+                    caption=caption,
+                    hashtags=hashtags,
+                    scheduled_at=scheduled_at,
+                    media_type=media_type,
+                    reel_video_url=reel_video_url,
+                    image_url=image_url,
                 )
                 return SchedulerResult(
                     business_id=business_id,
                     success=True,
-                    message=f"Post scheduled for {kwargs.get('scheduled_at')}.",
+                    message=f"Post scheduled for {scheduled_at}.",
                     calendar_post_id=post[0]["id"],
                 )
 
             elif action == "reschedule":
+                post_id      = kwargs.get("post_id")
+                scheduled_at = kwargs.get("scheduled_at")
+
+                # Auto-fetch the most recent scheduled post if post_id not passed
+                if not post_id:
+                    latest = get_latest_scheduled_post(business_id)
+                    if not latest:
+                        return SchedulerResult(
+                            business_id=business_id,
+                            success=False,
+                            message="No scheduled post found to reschedule.",
+                        )
+                    post_id = latest["id"]
+
+                if not scheduled_at:
+                    scheduled_at = datetime.now(timezone.utc).isoformat()
+
                 post = reschedule_post(
-                    post_id=kwargs.get("post_id") or "",
-                    new_scheduled_at=kwargs.get("scheduled_at") or "",
+                    post_id=post_id,
+                    new_scheduled_at=scheduled_at,
                 )
                 return SchedulerResult(
                     business_id=business_id,
                     success=True,
-                    message=f"Post rescheduled to {kwargs.get('scheduled_at')}.",
+                    message=f"Post rescheduled to {scheduled_at}.",
                     calendar_post_id=post[0]["id"],
                 )
 
             elif action == "cancel":
-                post = cancel_post(
-                    post_id=kwargs.get("post_id") or "",
-                )
+                post_id = kwargs.get("post_id")
+
+                # Auto-fetch the most recent scheduled post if post_id not passed
+                if not post_id:
+                    latest = get_latest_scheduled_post(business_id)
+                    if not latest:
+                        return SchedulerResult(
+                            business_id=business_id,
+                            success=False,
+                            message="No scheduled post found to cancel.",
+                        )
+                    post_id = latest["id"]
+
+                post = cancel_post(post_id=post_id)
                 return SchedulerResult(
                     business_id=business_id,
                     success=True,
@@ -68,7 +137,7 @@ class SchedulerAgent(Agent):
                 return SchedulerResult(
                     business_id=business_id,
                     success=False,
-                    message=f"Unknown action: {action}",
+                    message=f"Unknown action: '{action}'. Must be 'schedule', 'reschedule', or 'cancel'.",
                 )
 
         except Exception as e:
