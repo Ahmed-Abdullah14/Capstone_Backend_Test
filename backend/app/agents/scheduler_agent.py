@@ -1,120 +1,163 @@
-import os
-import asyncio
-import requests
-import json
 from datetime import datetime, timezone
 from app.agents.base_agent import Agent
-from app.db.business_profiler_queries import get_due_scheduled_posts, mark_post_as_published, log_publish_attempt
-from app.config import FACEBOOK_ACCESS_TOKEN, IG_ACCOUNT_ID, FB_API_VERSION
+from app.db.scheduler_queries import (
+    create_scheduled_post,
+    reschedule_post,
+    cancel_post,
+    get_latest_content_idea,
+    get_latest_scheduled_post,
+)
+from app.schemas.agent_results import SchedulerResult
+
 
 class SchedulerAgent(Agent):
     def __init__(self, kernel):
         super().__init__(kernel=kernel, name="scheduler_agent")
-        self.fb_access_token = FACEBOOK_ACCESS_TOKEN
-        self.ig_account_id = IG_ACCOUNT_ID
-        self.fb_api_version = FB_API_VERSION
 
-    async def run(self):
-        print(f"[{datetime.now()}] SchedulerAgent running...")
-        try:
-            now_iso = datetime.now(timezone.utc).isoformat()
-            due_posts = get_due_scheduled_posts(now_iso)
-            
-            if not due_posts:
-                print("No due posts found.")
-                return
+    async def run(
+        self,
+        *,
+        action: str,
+        context=None,
+        business_id: str = "",
+        caption: str | None = None,
+        hashtags: list[str] | None = None,
+        scheduled_at: str | None = None,
+        media_type: str | None = None,
+        image_url: str | None = None,
+        reel_video_url: str | None = None,
+        post_id: str | None = None,
+    ) -> SchedulerResult:
+        """
+        Routes the user's scheduling intent to the correct database function.
+        Python only writes to the DB — n8n handles the actual Instagram posting.
 
-            print(f"Found {len(due_posts)} posts to process.")
+        Supported actions: 'schedule', 'reschedule', 'cancel'
 
-            for item in due_posts:
-                try:
-                    await self._process_post(item)
-                except Exception as e:
-                    print(f"Error processing post {item.get('id')}: {e}")
-                    try:
-                        log_publish_attempt(item.get('id'), False, str(e))
-                    except Exception as log_err:
-                        print(f"Failed to log attempt for {item.get('id')}: {log_err}")
-
-        except Exception as e:
-            print(f"Scheduler failed to get due posts: {e}")
-
-    async def _process_post(self, item):
-        post_id = item.get("id")
-        print(f"Processing post ID: {post_id}")
-        
-        media = item.get("media", {})
-        if isinstance(media, str):
-            try:
-                media = json.loads(media)
-            except Exception:
-                pass
-                
-        video_url = media.get("reel_video_url") or media.get("video_url") or media.get("url")
-        if not video_url:
-            raise ValueError(f"Missing video URL in media JSON for post {post_id}")
-
-        caption = item.get("caption", "")
-
-        if not self.fb_access_token:
-            raise ValueError("FACEBOOK_ACCESS_TOKEN is missing. Cannot publish reel.")
-
-        container_url = f"https://graph.facebook.com/{self.fb_api_version}/{self.ig_account_id}/media"
-        container_payload = {
-            "media_type": "REELS",
-            "video_url": video_url,
-            "caption": caption,
-            "access_token": self.fb_access_token
-        }
-        print("Creating Reel container...")
-        container_res = await asyncio.to_thread(requests.post, container_url, params=container_payload)
-        
-        if not container_res.ok:
-            raise Exception(f"Failed to create Reel container: {container_res.text}")
-            
-        container_data = container_res.json()
-        creation_id = container_data.get("id")
-        if not creation_id:
-            raise Exception(f"No creation_id returned: {container_data}")
-
-        print(f"Container created ({creation_id}). Waiting 60 seconds for processing...")
-        await asyncio.sleep(60)
-
-        publish_url = f"https://graph.facebook.com/{self.fb_api_version}/{self.ig_account_id}/media_publish"
-        publish_payload = {
-            "creation_id": creation_id,
-            "access_token": self.fb_access_token
-        }
-        print("Publishing Reel...")
-        publish_res = await asyncio.to_thread(requests.post, publish_url, params=publish_payload)
-
-        if not publish_res.ok:
-            raise Exception(f"Failed to publish Reel: {publish_res.text}")
-            
-        publish_data = publish_res.json()
-        print(f"Reel published successfully! IG Media ID: {publish_data.get('id')}")
+        Can be called two ways:
+          1. Explicitly (from run_scheduler.py / tests) — pass scheduling fields directly
+          2. From manager_agent — pass context + action only; missing fields are
+             auto-fetched from the DB (latest content_idea / calendar_post)
+        """
+        # Extract business_id from context if not passed directly
+        business_id = business_id or (context.business_id if context else "")
 
         try:
-            mark_post_as_published(post_id)
-            print(f"Post {post_id} marked as 'posted'.")
+            if action == "schedule":
+                # Auto-fetch caption/hashtags/image from latest content idea if not passed
+                if not caption or not hashtags:
+                    idea = get_latest_content_idea(business_id)
+                    if not idea:
+                        return SchedulerResult(
+                            business_id=business_id,
+                            success=False,
+                            message="No content idea found. Please generate content first before scheduling.",
+                        )
+                    caption  = caption  or idea.get("caption") or ""
+                    hashtags = hashtags or idea.get("hashtags") or []
+
+                # Infer media_type from whichever URL is present
+                if not media_type:
+                    if image_url:
+                        media_type = "IMAGE"
+                    elif reel_video_url:
+                        media_type = "REELS"
+                    else:
+                        # No media yet: store as draft so it can be completed later.
+                        post = create_scheduled_post(
+                            business_id=business_id,
+                            caption=caption or "",
+                            hashtags=hashtags or [],
+                            scheduled_at=None,
+                            status="draft",
+                        )
+                        return SchedulerResult(
+                            business_id=business_id,
+                            success=True,
+                            message=(
+                                "No media URL found. Saved this post as draft; add "
+                                "image_url or reel_video_url to schedule it."
+                            ),
+                            calendar_post_id=post[0]["id"],
+                        )
+
+                # Scheduled posts must have a publish time
+                if not scheduled_at:
+                    scheduled_at = datetime.now(timezone.utc).isoformat()
+
+                post = create_scheduled_post(
+                    business_id=business_id,
+                    caption=caption,
+                    hashtags=hashtags,
+                    scheduled_at=scheduled_at,
+                    media_type=media_type,
+                    reel_video_url=reel_video_url,
+                    image_url=image_url,
+                    status="scheduled",
+                )
+                return SchedulerResult(
+                    business_id=business_id,
+                    success=True,
+                    message=f"Post scheduled for {scheduled_at}.",
+                    calendar_post_id=post[0]["id"],
+                )
+
+            elif action == "reschedule":
+                # Auto-fetch the most recent scheduled post if post_id not passed
+                if not post_id:
+                    latest = get_latest_scheduled_post(business_id)
+                    if not latest:
+                        return SchedulerResult(
+                            business_id=business_id,
+                            success=False,
+                            message="No scheduled post found to reschedule.",
+                        )
+                    post_id = latest["id"]
+
+                if not scheduled_at:
+                    scheduled_at = datetime.now(timezone.utc).isoformat()
+
+                post = reschedule_post(
+                    post_id=post_id,
+                    new_scheduled_at=scheduled_at,
+                )
+                return SchedulerResult(
+                    business_id=business_id,
+                    success=True,
+                    message=f"Post rescheduled to {scheduled_at}.",
+                    calendar_post_id=post[0]["id"],
+                )
+
+            elif action == "cancel":
+                # Auto-fetch the most recent scheduled post if post_id not passed
+                if not post_id:
+                    latest = get_latest_scheduled_post(business_id)
+                    if not latest:
+                        return SchedulerResult(
+                            business_id=business_id,
+                            success=False,
+                            message="No scheduled post found to cancel.",
+                        )
+                    post_id = latest["id"]
+
+                post = cancel_post(post_id=post_id)
+                return SchedulerResult(
+                    business_id=business_id,
+                    success=True,
+                    message="Post canceled.",
+                    calendar_post_id=post[0]["id"],
+                )
+
+            else:
+                return SchedulerResult(
+                    business_id=business_id,
+                    success=False,
+                    message=f"Unknown action: '{action}'. Must be 'schedule', 'reschedule', or 'cancel'.",
+                )
+
         except Exception as e:
-            print(f"Failed to update post status for {post_id}: {e}")
-            
-        try:    
-            log_publish_attempt(post_id, True, "Published successfully")
-        except Exception as e:
-            print(f"Failed to log success for {post_id}: {e}")
-
-
-
-if __name__ == "__main__":
-    from dotenv import load_dotenv  # type: ignore
-    load_dotenv(".env.local")
-
-    async def main():
-        print("Initializing Scheduler Agent (Terminal Mode)...")
-        agent = SchedulerAgent(kernel=None)
-        await agent.run()
-        print("Agent run complete!")
-
-    asyncio.run(main())
+            return SchedulerResult(
+                business_id=business_id,
+                success=False,
+                message=str(e),
+            )
