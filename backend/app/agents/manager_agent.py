@@ -25,6 +25,8 @@ IMMEDIATE_ROUTES = [
     RouteType.FETCH_EXISTING_COMPETITORS,
     RouteType.ANALYZE_PHOTO,
     RouteType.GENERATE_POST_IMAGE,
+    RouteType.SKIP_TO_CONTENT_GENERATOR,
+    RouteType.SCHEDULE_POST
 ]
 
 class ManagerAgent(Agent):
@@ -72,18 +74,34 @@ class ManagerAgent(Agent):
         #print(f"\n\n=== LLM MESSAGE ===\n{user_request.user_prompt}\n")
 
         # Adding system message to memory thread with pipeline state
-        if intent == IntentType.CONFIRM and pending_route:
+        if route in IMMEDIATE_ROUTES:
+            determined_route = route
+            route_info = (
+                f"\nDetermined route for this request: {determined_route}\n"
+                f"This route is executing immediately — do NOT ask the user for confirmation.\n"
+                f"Do NOT present any results or data in this response — the data is not available yet.\n"
+                f"Just briefly acknowledge that you are retrieving the information now.\n"
+            )
+        elif intent == IntentType.CONFIRM and pending_route:
             determined_route = pending_route
+            route_info = (
+                f"\nDetermined route for this request: {determined_route}\n"
+                f"This is what will execute now that the user has confirmed.\n"
+                f"Your response must align with this route, do not suggest a different action.\n"
+            )
+        elif intent == IntentType.CONFIRM and not pending_route:
+            determined_route = None
+            route_info = "\nNo pending route to confirm. Nothing will execute.\n"
         elif route not in [RouteType.UNKNOWN]:
             determined_route = route
-        else: 
+            route_info = (
+                f"\nDetermined route for this request: {determined_route}\n"
+                f"This is what will execute when the user confirms.\n"
+                f"Your response must align with this route, do not suggest a different action.\n"
+            )
+        else:
             determined_route = None
-        
-        route_info = ""
-        if determined_route:
-            route_info = f"\nDetermined route for this request: {determined_route}\n"
-            route_info += f"This is what will execute when the user confirms.\n"
-            route_info += f"Your response must align with this route, do not suggest a different action.\n"
+            route_info = ""
         
 
         thread._chat_history.add_system_message(
@@ -123,18 +141,36 @@ class ManagerAgent(Agent):
             final_agent_response = await self.execute_route(pending_route, pending_pipeline_end_at, business_context)
 
         if final_agent_response:
-            final_manager_message = await self.agent.get_response(
-                message =(
-                    f"The following action has completed:\n"
-                    f"Route executed: {route if route in IMMEDIATE_ROUTES else pending_route}\n"
-                    f"Result: {final_agent_response}\n\n"
-                    f"Present these results to the user naturally following the instructions."
-                ),
-                thread=thread,
-                settings=OpenAIChatPromptExecutionSettings()
-            )
-            await cl.Message(content = str(final_manager_message.content)).send()
+            executed_route = route if route in IMMEDIATE_ROUTES else pending_route
 
+            # Handle image generation to display image directly via Chainlit
+            if hasattr(final_agent_response, 'image_url') and final_agent_response.image_url:
+                image_element = cl.Image(url=final_agent_response.image_url, name="Generated Post Image", display="inline", size="large")
+                await cl.Message(content="Here is your generated post image:", elements=[image_element]).send()
+            else:
+                if hasattr(final_agent_response, 'format_for_display'):
+                    display_data = final_agent_response.format_for_display()
+                else:
+                    display_data = str(final_agent_response)
+
+                thread._chat_history.add_system_message(
+                    f"OVERRIDE: The {executed_route} pipeline has finished. The results are now available.\n"
+                    f"You MUST present the following data to the user in your next response. Do not omit or replace it with placeholders.\n"
+                    f"Result data:\n{display_data}"
+                )
+
+                final_manager_message = await self.agent.get_response(
+                    message=(
+                        f"The action has completed. Present the result data from the system message above to the user naturally. "
+                        f"Then suggest the next logical step based on the current pipeline state."
+                    ),
+                    thread=thread,
+                    settings=OpenAIChatPromptExecutionSettings()
+                )
+                await cl.Message(content=str(final_manager_message.content)).send()
+
+            if hasattr(final_agent_response, 'mode') and final_agent_response.mode == "default" and final_agent_response.success:
+                await self.scheduler_agent.run(action="schedule", context=business_context)
 
         return ManagerDecision(
             intent=intent,
@@ -286,8 +322,9 @@ class ManagerAgent(Agent):
             async with cl.Step(name="Fetching competitor list...") as step:
                 competitors_list = await self.business_profiler_queries.get_competitor_list(context.business_id)
                 step.output = f"Found {len(competitors_list)} competitors."
- 
-            return competitors_list
+
+            usernames = [c.get("username", "Unknown") for c in competitors_list[2:7]]
+            return f"Found {len(competitors_list)} total competitors. First 5:\n" + "\n".join(f"- @{u}" for u in usernames)
  
 
         elif route == RouteType.GENERATE_POST_IMAGE:

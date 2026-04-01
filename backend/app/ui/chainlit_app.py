@@ -136,14 +136,10 @@ async def on_message(message: cl.Message):
             pending_pipeline_end_at=pending_pipeline_end_at
         )
 
-        
         if manager_decision.route not in [RouteType.UNKNOWN] and manager_decision.intent not in [IntentType.CONFIRM, IntentType.CANCEL]:
             cl.user_session.set("pending_route", manager_decision.route)
             cl.user_session.set("pending_pipeline_end_at", manager_decision.pipeline_end_at)
-        elif manager_decision.intent == IntentType.CANCEL:
-            cl.user_session.set("pending_route", None)
-            cl.user_session.set("pending_pipeline_end_at", None)
-        elif manager_decision.intent == IntentType.CONFIRM:
+        elif manager_decision.intent in [IntentType.CANCEL, IntentType.CONFIRM]:
             cl.user_session.set("pending_route", None)
             cl.user_session.set("pending_pipeline_end_at", None)
 

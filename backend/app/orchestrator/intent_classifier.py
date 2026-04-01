@@ -8,31 +8,32 @@ class IntentClassifier:
     # Defining a dictionary for matching the intent of the user based on keywords
     _RULES = {
         IntentType.FIND_COMPETITORS : [
-            "competitor", "find competitors", "discover competitors", "who are my competitors", 
-            "local businesses", "analyze competitors", "other brands", "other companies", 
+            "competitor", "find competitors", "discover competitors", "who are my competitors",
+            "local businesses", "analyze competitors", "other brands", "other companies",
             "find cafes", "find realtors"
         ],
+        IntentType.GENERATE_POST_IMAGE : [
+            "generate image", "create image", "make a photo", "generate a photo", "ai image",
+            "create visual", "post image", "generate an image", "create an image", "make an image"
+        ],
         IntentType.GENERATE_CONTENT_IDEAS : [
-            "content idea", "post idea", "what should i post", "give me ideas", "generate content", 
-            "what should i shoot", "camera angle", "suggest content", "content recommendation", 
-            "instagram ideas", "social media ideas", "ideas for a post", "ideas for instagram", 
+            "content idea", "post idea", "what should i post", "give me ideas", "generate content",
+            "what should i shoot", "camera angle", "suggest content", "content recommendation",
+            "instagram ideas", "social media ideas", "ideas for a post", "ideas for instagram",
             "trending content", "photo angle", "generate a post", "create a post", "make a post"
         ],
         IntentType.RESCHEDULE_POST : [
-            "reschedule", "move my post", "change the date", "move to", "change post date", 
+            "reschedule", "move my post", "change the date", "move to", "change post date",
             "shift my post", "postpone", "delay the post"
         ],
         IntentType.SCHEDULE_POST : [
-            "schedule", "publish", "post this", "add to calendar", "auto post", "post it", 
+            "schedule", "publish", "post this", "add to calendar", "auto post", "post it",
             "schedule this photo", "post this photo", "plan a post", "publish post"
         ],
         IntentType.ANALYZE_PHOTO : [
-            "caption for this", "caption for my photo", "caption for my picture", "what should i caption", 
+            "caption for this", "caption for my photo", "caption for my picture", "what should i caption",
             "analyze my photo", "analyze this photo", "best time for this", "when should i post this",
             "review my photo"
-        ],
-        IntentType.GENERATE_POST_IMAGE : [
-            "generate image", "create image", "make a photo", "generate a photo", "ai image", "create visual"
         ],
         IntentType.CONFIRM: [
             "yes", "yeah", "yep", "ok", "okay", "sure", "proceed", "go ahead", "start", "begin", "do it", "let's go", "sounds good"
