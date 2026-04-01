@@ -61,7 +61,6 @@ def reschedule_post(post_id: str, new_scheduled_at: str) -> list:
         supabase.table("calendar_posts")
         .update(data)
         .eq("id", post_id)
-        .select()
         .execute()
     )
     return response.data
@@ -73,7 +72,6 @@ def cancel_post(post_id: str) -> list:
         supabase.table("calendar_posts")
         .update({"status": "draft"})
         .eq("id", post_id)
-        .select()
         .execute()
     )
     return response.data
