@@ -67,13 +67,13 @@ class BusinessProfilerQueries:
 
         trends_ts = (
             supabase.table("trend_summaries")
-            .select("updated_at")
+            .select("created_at")
             .eq("business_id", business_id)
-            .order("updated_at", desc=True)
+            .order("created_at", desc=True)
             .limit(1)
             .execute()
         )
-        trends_last_updated = parse_dt(trends_ts.data[0]["updated_at"]) if trends_ts.data else None
+        trends_last_updated = parse_dt(trends_ts.data[0]["created_at"]) if trends_ts.data else None
 
         hashtags_last_updated = parse_dt(profile.get("hashtags_last_updated"))
 
@@ -223,7 +223,7 @@ class BusinessProfilerQueries:
         return result.data[0]
 
     # Competitors
-    def get_competitor_list(self, business_id: str) -> list[dict[str, Any]]:
+    def get_competitor_list_sync(self, business_id: str) -> list[dict[str, Any]]:
         result = (
             supabase.table("competitors")
             .select("*")
@@ -233,6 +233,9 @@ class BusinessProfilerQueries:
         )
         return result.data or []
 
+    async def get_competitor_list(self, business_id: str) -> list[dict[str, Any]]:
+        return await asyncio.to_thread(self.get_competitor_list_sync, business_id)
+    
     def get_competitor_posts(self, business_id: str) -> list[dict[str, Any]]:
         result = (
             supabase.table("competitor_posts")
@@ -269,7 +272,7 @@ class BusinessProfilerQueries:
             supabase.table("trend_summaries")
             .select("*")
             .eq("business_id", business_id)
-            .order("updated_at", desc=True)
+            .order("created_at", desc=True)
             .limit(1)
             .execute()
         )
@@ -284,8 +287,24 @@ class BusinessProfilerQueries:
     async def get_trend_summary(self, business_id: str) -> Optional[TrendSummary]:
         return await asyncio.to_thread(self.get_trend_summary_sync, business_id)
 
-    # Embedding persistence
-    # caption_data/image_data broken up from the trend analysis agent cluster dictionary to table columns
+    def save_trend_summary(self, business_id: str, trend_summary: dict[str, Any]) -> None:
+        """Persist a trend summary to the trend_summaries table.
+
+        *trend_summary* is a dict (e.g. {"best_combinations": [...]}).
+        It is stored as-is in the ``summary`` jsonb column.
+        ``created_at`` is auto-filled by Supabase.
+        """
+        payload = {
+            "business_id": business_id,
+            "summary": json.dumps(trend_summary),
+        }
+        result = (
+            supabase.table("trend_summaries")
+            .insert(payload)
+            .execute()
+        )
+        if not result.data:
+            raise RuntimeError(f"Failed to save trend summary for business_id={business_id}")
 
     def save_caption_embeddings(self, caption_data: list[dict[str, Any]]) -> None:
         payload = [{

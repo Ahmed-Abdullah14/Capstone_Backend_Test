@@ -26,34 +26,30 @@ class BusinessProfilerAgent(Agent):
             raise ValueError("Business context is missing required fields (business_name, business_type, location, target_customers)")
 
         system_prompt = (
-            "You are an Instagram growth strategist for local businesses.\n"
-            "Given a business profile, generate hashtags and search parameters to find local competitors on Instagram.\n\n"
-            "If the business provides an Instagram handle, search their Instagram profile to understand their current brand voice, "
-            "visual style, posting patterns, and the type of content they share. Use this to tailor your recommendations.\n\n"
-            "If the business provides a website URL, search their website to understand their brand tone, business colors, "
-            "services/products offered, and overall brand identity. Use this to make your hashtag and keyword recommendations "
-            "more aligned with their actual brand.\n\n"
+            "You are an expert Instagram growth strategist for local businesses.\n"
+            "Given a business profile, your job is to logically deduce their brand identity and generate highly effective search parameters to find local competitors on Instagram.\n\n"
+            "You do NOT have internet access. Do NOT pretend to search the internet or look up their website or Instagram.\n"
+            "Use the provided Business Type, Target Customers, and Location to intelligently infer the most likely brand voice, aesthetic, and professional color palette that would appeal to their demographic.\n"
+            "If an Instagram handle or Website is provided, use the naming style and formatting of the handle/URL as additional context clues about their brand vibe.\n\n"
             "Return ONLY valid JSON with this exact structure:\n"
             "{\n"
             '  "primary_hashtags": ["list of 3 hyper-local/niche hashtags specific to the city and business type"],\n'
             '  "secondary_hashtags": ["list of 2 broader industry hashtags that are not location-specific"],\n'
             '  "location_keywords": ["list of 2-4 location-based search terms"],\n'
-            '  "exclude_accounts": ["list of 2-4 large chain/franchise accounts to filter out"],\n'
+            '  "exclude_accounts": ["list of 2-4 exact Instagram handles of large chain/franchise competitors to filter out"],\n'
             '  "ideal_follower_min": 500,\n'
             '  "ideal_follower_max": 30000,\n'
-            '  "brand_voice": "short description of the brand tone/voice based on their Instagram and website (e.g. casual and friendly, professional and polished)",\n'
-            '  "brand_colors": ["list of brand colors or color themes observed from their website/Instagram"],\n'
-            '  "content_style": "short description of the visual content style observed (e.g. lifestyle photography, flat lays, behind-the-scenes)"\n'
+            '  "brand_voice": "expert recommendation for their brand tone/voice (e.g. casual and friendly, professional and polished)",\n'
+            '  "brand_colors": ["expert recommendation of 2-3 specific brand colors or color themes expected for this niche"],\n'
+            '  "content_style": "expert recommendation for their visual content style (e.g. lifestyle photography, flat lays, behind-the-scenes)"\n'
             "}\n\n"
             "Guidelines:\n"
-            "- Primary hashtags should combine the city/area with the business type (e.g. yyccoffee, calgarycafes)\n"
-            "- Secondary hashtags should be broader industry terms (e.g. latteart, specialtycoffee)\n"
-            "- If an Instagram handle is provided, look at their profile to understand what content resonates with their audience "
-            "and suggest hashtags that align with their existing brand voice and content style\n"
-            "- If a website is provided, analyze the brand tone, colors, and offerings to recommend hashtags that match their identity\n"
-            "- Exclude accounts should be large national/international chains that would skew competitor analysis\n"
-            "- Follower range should target local businesses, not large brands (min: 500, max: 30000)\n"
-            "- Location keywords should help identify businesses in the same area\n"
+            "- Primary hashtags should combine the city/area with the business type (e.g. yyccoffee, calgarycafes). Ensure they are real, commonly used local tags. Avoid making up overly long or complex tags.\n"
+            "- Secondary hashtags should be broader niche/industry terms (e.g. latteart, specialtycoffee).\n"
+            "- Brand voice, colors, and content style should be your expert recommendation for what will work best to attract their specific target audience.\n"
+            "- Exclude accounts MUST be the actual Instagram handles (no @ symbol) of large national/international chains (e.g. starbuckscanada, timhortons, homedepot) that would ruin local competitor analysis.\n"
+            "- Follower range should target successful local businesses, not massive global brands (min: 500, max: 30000).\n"
+            "- Location keywords should help identify businesses in the same local area.\n"
             "- Return ONLY the JSON object, no markdown, no explanation"
         )
 
@@ -115,7 +111,7 @@ class BusinessProfilerAgent(Agent):
             content_style=data.get("content_style"),
         )
         
-        #self.business_profiler_queries.save_profiler_result(profiler_result)           # Once its saved to DB Manager will not route to profiler again, so dont save to db if you want to see the profilers response.
+        self.business_profiler_queries.save_profiler_result(profiler_result)           # Once its saved to DB Manager will not route to profiler again, so dont save to db if you want to see the profilers response.
 
         return profiler_result
     
