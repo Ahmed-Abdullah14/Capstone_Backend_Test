@@ -52,7 +52,7 @@ class BusinessProfilerQueries:
         if not business.data:
             raise LookupError(f"No business found for id={business_id}")
         row = business.data[0]
-        profile = load_json(row.get("profile_json"))
+        profile = load_json(row.get("onboarding_json"))
 
         # Freshness: competitor_posts uses latest posted_at of scraped posts for freshness
         posts_ts = (
